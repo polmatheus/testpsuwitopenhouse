@@ -99,13 +99,12 @@
 
 <script>
         // ==========================================
-        // ⚠️ ตั้งค่า Supabase
+        // ⚠️ ตั้งค่า Supabase (ใส่ Key ของจริงแล้ว)
         // ==========================================
         const SUPABASE_URL = 'https://pqkaqsxmbewilzruogdw.supabase.co'; 
-        // ใส่ Key ของคุณที่นี่
         const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBxa2Fxc3htYmV3aWx6cnVvZ2R3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg0ODgzMTksImV4cCI6MjA4NDA2NDMxOX0.TFyfNcFXcUUF29Iexmkjf6EaNIXAv8KuOFY_ydAY_z8'; 
 
-        // --- จุดที่แก้: เปลี่ยนชื่อตัวแปรเป็น 'client' เพื่อไม่ให้ชื่อชนกับ Library ---
+        // ✅ ใช้ชื่อตัวแปร client เพื่อไม่ให้ชนกับ Library
         const client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
         let selections = { 1: null, 2: null, 3: null, 4: null }; 
@@ -129,7 +128,7 @@
             btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> กำลังตรวจสอบ...';
 
             try {
-                // เปลี่ยนจาก supabase.from เป็น client.from
+                // ✅ ใช้ client แทน supabase
                 const { data, error } = await client
                     .from('registrations')
                     .select('student_id')
@@ -173,7 +172,7 @@
             document.getElementById('userConditionText').innerText = conditionText;
 
             try {
-                // เปลี่ยนจาก supabase.from เป็น client.from
+                // ✅ ใช้ client แทน supabase
                 const { data, error } = await client
                     .from('activity_counts')
                     .select('*');
@@ -377,7 +376,7 @@
                     };
 
                     try {
-                        // เปลี่ยนจาก supabase.from เป็น client.from
+                        // ✅ ใช้ client แทน supabase
                         const { error } = await client
                             .from('registrations')
                             .insert([payload]);
