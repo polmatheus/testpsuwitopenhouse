@@ -102,11 +102,11 @@
         // ⚠️ ตั้งค่า Supabase
         // ==========================================
         const SUPABASE_URL = 'https://pqkaqsxmbewilzruogdw.supabase.co'; 
-        // ใส่ Key ของคุณที่นี่ (อันเดิมที่คุณมี)
+        // ใส่ Key ของคุณที่นี่
         const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBxa2Fxc3htYmV3aWx6cnVvZ2R3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzY5NjAwMDAsImV4cCI6MjA1MjUzNjAwMH0.xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'; 
 
-        // --- จุดที่แก้: เปลี่ยนชื่อตัวแปรจาก supabase เป็น db ---
-        const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+        // --- จุดที่แก้: เปลี่ยนชื่อตัวแปรเป็น 'client' เพื่อไม่ให้ชื่อชนกับ Library ---
+        const client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
         let selections = { 1: null, 2: null, 3: null, 4: null }; 
         let studentInfo = {}; 
@@ -129,8 +129,8 @@
             btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> กำลังตรวจสอบ...';
 
             try {
-                // ใช้ db แทน supabase
-                const { data, error } = await db
+                // เปลี่ยนจาก supabase.from เป็น client.from
+                const { data, error } = await client
                     .from('registrations')
                     .select('student_id')
                     .eq('student_id', studentInfo.id)
@@ -164,7 +164,6 @@
             document.getElementById('loginSection').style.display = 'none';
             document.getElementById('selectionSection').style.display = 'block';
             
-            // ตั้งเงื่อนไข
             let conditionText = "";
             if (studentInfo.classLevel == "1" || studentInfo.classLevel == "4") {
                 conditionText = "ต้องมี ISTEM, Teacher, Parent ครบทุกกลุ่ม";
@@ -174,9 +173,9 @@
             document.getElementById('userConditionText').innerText = conditionText;
 
             try {
-                // ใช้ db แทน supabase
-                const { data, error } = await db
-                    .from('activity_counts') // เรียกจาก View
+                // เปลี่ยนจาก supabase.from เป็น client.from
+                const { data, error } = await client
+                    .from('activity_counts')
                     .select('*');
 
                 if (error) throw error;
@@ -215,7 +214,7 @@
                     let slotData = item.slots[s];
                     html += `<td class="text-center p-1 align-middle">`;
                     if (slotData) {
-                        let id = slotData.id; // ใช้ ID จาก Supabase View
+                        let id = slotData.id; 
                         let max = slotData.max_seats;
                         let reg = slotData.current_seats;
                         let remain = max - reg;
@@ -378,8 +377,8 @@
                     };
 
                     try {
-                        // ใช้ db แทน supabase
-                        const { error } = await db
+                        // เปลี่ยนจาก supabase.from เป็น client.from
+                        const { error } = await client
                             .from('registrations')
                             .insert([payload]);
 
