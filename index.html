@@ -21,7 +21,6 @@
         }
         .logo-circle { width: 90px; height: 90px; transition: transform 0.3s; }
         .logo-circle:hover { transform: scale(1.1); }
-        .logo-text { height: 60px; object-fit: contain; }
 
         .main-card { background: white; border-radius: 15px; padding: 30px; max-width: 600px; margin: 0 auto; box-shadow: 0 10px 30px rgba(0,0,0,0.08); }
         .btn-main { background: linear-gradient(to right, var(--primary-color), var(--secondary-color)); color: white; border-radius: 50px; width: 100%; padding: 12px; font-weight: bold; border:none; }
@@ -39,6 +38,9 @@
         .badge-istem { background-color: #6f42c1; color: white; }
         .badge-teacher { background-color: #0dcaf0; color: black; }
         .badge-parent { background-color: #ffc107; color: black; }
+        
+        /* สไตล์สำหรับใบเสร็จ (หน้าสุดท้าย) */
+        .receipt-card { border-top: 5px solid #198754; }
         
         @media (max-width: 576px) { .header-content { flex-direction: column; } }
     </style>
@@ -90,6 +92,39 @@
                 </table>
             </div>
         </div>
+
+        <div id="successSection" class="main-card receipt-card text-center" style="display:none;">
+            <i class="bi bi-check-circle-fill text-success" style="font-size: 4rem;"></i>
+            <h4 class="fw-bold mt-2 text-success">ลงทะเบียนสำเร็จ!</h4>
+            <p class="text-muted small">บันทึกข้อมูลเข้าสู่ระบบเรียบร้อยแล้ว<br>แคปหน้าจอนี้ไว้เป็นหลักฐาน</p>
+            
+            <div class="card bg-light border-0 p-3 mb-3 text-start shadow-sm">
+                <div class="row">
+                    <div class="col-6"><strong>ชื่อ:</strong> <span id="successName"></span></div>
+                    <div class="col-6"><strong>รหัส:</strong> <span id="successId"></span></div>
+                    <div class="col-12 mt-1"><strong>ชั้น:</strong> ม.<span id="successClass"></span>/ <span id="successRoom"></span> เลขที่ <span id="successNumber"></span></div>
+                </div>
+            </div>
+
+            <h6 class="fw-bold text-start mb-2"><i class="bi bi-calendar-check"></i> ตารางกิจกรรมที่เลือก</h6>
+            <div class="table-responsive">
+                <table class="table table-bordered table-sm">
+                    <thead class="table-primary">
+                        <tr>
+                            <th width="35%">เวลา</th>
+                            <th>กิจกรรม</th>
+                        </tr>
+                    </thead>
+                    <tbody id="successTableBody">
+                        </tbody>
+                </table>
+            </div>
+            
+            <button class="btn btn-outline-primary w-100 mt-3 rounded-pill" onclick="location.reload()">
+                <i class="bi bi-house-door-fill"></i> กลับหน้าแรก
+            </button>
+        </div>
+
     </div>
 
     <div class="footer-bar justify-content-between align-items-center" id="footerBar">
@@ -98,13 +133,9 @@
     </div>
 
 <script>
-        // ==========================================
-        // ⚠️ ตั้งค่า Supabase (ใส่ Key ของจริงแล้ว)
-        // ==========================================
         const SUPABASE_URL = 'https://pqkaqsxmbewilzruogdw.supabase.co'; 
         const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBxa2Fxc3htYmV3aWx6cnVvZ2R3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg0ODgzMTksImV4cCI6MjA4NDA2NDMxOX0.TFyfNcFXcUUF29Iexmkjf6EaNIXAv8KuOFY_ydAY_z8'; 
 
-        // ✅ ใช้ชื่อตัวแปร client เพื่อไม่ให้ชนกับ Library
         const client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
         let selections = { 1: null, 2: null, 3: null, 4: null }; 
@@ -128,7 +159,6 @@
             btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> กำลังตรวจสอบ...';
 
             try {
-                // ✅ ใช้ client แทน supabase
                 const { data, error } = await client
                     .from('registrations')
                     .select('student_id')
@@ -172,7 +202,6 @@
             document.getElementById('userConditionText').innerText = conditionText;
 
             try {
-                // ✅ ใช้ client แทน supabase
                 const { data, error } = await client
                     .from('activity_counts')
                     .select('*');
@@ -345,7 +374,7 @@
             }
         }
 
-        // --- 5. บันทึกลง Supabase ---
+        // --- 5. บันทึกและแสดงผล ---
         function submitAll() {
             Swal.fire({
                 title: 'ยืนยันการลงทะเบียน?',
@@ -376,7 +405,6 @@
                     };
 
                     try {
-                        // ✅ ใช้ client แทน supabase
                         const { error } = await client
                             .from('registrations')
                             .insert([payload]);
@@ -388,7 +416,10 @@
                             title: 'สำเร็จ!', 
                             text: 'บันทึกข้อมูลเรียบร้อยแล้ว', 
                             confirmButtonColor: '#198754'
-                        }).then(() => location.reload());
+                        }).then(() => {
+                            // ✅ แก้ตรงนี้: เรียกฟังก์ชันแสดงหน้าสรุปแทนการ Reload
+                            showSuccessPage(payload);
+                        });
 
                     } catch (err) {
                         console.error(err);
@@ -400,6 +431,51 @@
                     }
                 }
             });
+        }
+
+        // --- 6. ฟังก์ชันแสดงหน้าสรุป (Success Page) ---
+        function showSuccessPage(data) {
+            // ซ่อนหน้าเลือกและ Footer
+            document.getElementById('selectionSection').style.display = 'none';
+            document.getElementById('footerBar').style.display = 'none';
+
+            // แสดงหน้าสำเร็จ
+            document.getElementById('successSection').style.display = 'block';
+
+            // ใส่ข้อมูลนักเรียน
+            document.getElementById('successName').innerText = data.student_name;
+            document.getElementById('successId').innerText = data.student_id;
+            document.getElementById('successClass').innerText = data.class_level;
+            document.getElementById('successRoom').innerText = data.room;
+            document.getElementById('successNumber').innerText = data.number;
+
+            // สร้างตารางสรุปจากตัวแปร selections ที่เราเลือกไว้
+            let html = '';
+            const times = {
+                1: '09:00 - 10:30',
+                2: '10:30 - 12:00',
+                3: '13:00 - 14:30',
+                4: '14:30 - 16:00'
+            };
+
+            for(let i=1; i<=4; i++) {
+                if(selections[i]) {
+                    html += `<tr>
+                        <td class="bg-light align-middle">
+                            <span class="badge bg-secondary mb-1">Slot ${i}</span><br>
+                            <span class="small">${times[i]}</span>
+                        </td>
+                        <td class="text-start align-middle">
+                            <div class="fw-bold text-primary">${selections[i].name}</div>
+                            <span class="badge bg-info text-dark" style="font-size:0.7rem">${selections[i].group}</span>
+                        </td>
+                    </tr>`;
+                }
+            }
+            document.getElementById('successTableBody').innerHTML = html;
+            
+            // เลื่อนหน้าจอไปบนสุด
+            window.scrollTo(0, 0);
         }
     </script>
 </body>
