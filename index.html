@@ -97,19 +97,24 @@
         <button id="btnConfirm" disabled onclick="submitAll()" class="btn btn-secondary rounded-pill px-4 fw-bold">ยืนยันการลงทะเบียน</button>
     </div>
 
-    <script>
+<script>
         // ==========================================
-        // ⚠️ ใส่ค่า KEY ของ Supabase ตรงนี้
+        // ⚠️ ตั้งค่า Supabase
         // ==========================================
         const SUPABASE_URL = 'https://pqkaqsxmbewilzruogdw.supabase.co'; 
-        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBxa2Fxc3htYmV3aWx6cnVvZ2R3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg0ODgzMTksImV4cCI6MjA4NDA2NDMxOX0.TFyfNcFXcUUF29Iexmkjf6EaNIXAv8KuOFY_ydAY_z8';
-        const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+        // ใส่ Key ของคุณที่นี่ (อันเดิมที่คุณมี)
+        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBxa2Fxc3htYmV3aWx6cnVvZ2R3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzY5NjAwMDAsImV4cCI6MjA1MjUzNjAwMH0.xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'; 
+
+        // --- จุดที่แก้: เปลี่ยนชื่อตัวแปรจาก supabase เป็น db ---
+        const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
         let selections = { 1: null, 2: null, 3: null, 4: null }; 
         let studentInfo = {}; 
 
+        // --- 1. เช็คสิทธิ์และเข้าสู่ระบบ ---
         async function checkAndGo(e) {
             e.preventDefault();
+            
             studentInfo = {
                 name: document.getElementById('inputName').value,
                 id: document.getElementById('inputId').value.trim(),
@@ -117,21 +122,39 @@
                 room: document.getElementById('inputRoom').value,
                 number: document.getElementById('inputNumber').value
             };
+
             let btn = document.getElementById('btnEnter');
-            let txt = btn.innerHTML;
-            btn.disabled = true; btn.innerHTML = 'กำลังตรวจสอบ...';
+            let originalText = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> กำลังตรวจสอบ...';
 
             try {
-                const { data, error } = await supabase.from('registrations').select('student_id').eq('student_id', studentInfo.id).maybeSingle();
+                // ใช้ db แทน supabase
+                const { data, error } = await db
+                    .from('registrations')
+                    .select('student_id')
+                    .eq('student_id', studentInfo.id)
+                    .maybeSingle();
+
+                if (error) throw error;
+
                 if (data) {
-                    Swal.fire({icon: 'warning', title: 'ลงทะเบียนแล้ว', text: 'รหัสนักเรียนนี้ลงทะเบียนเรียบร้อยแล้ว', confirmButtonColor: '#0d47a1'});
-                    btn.disabled = false; btn.innerHTML = txt;
+                    Swal.fire({
+                        icon: 'warning',
+                        title: 'ลงทะเบียนแล้ว',
+                        text: 'รหัสนักเรียนนี้ลงทะเบียนเรียบร้อยแล้วครับ',
+                        confirmButtonColor: '#0d47a1'
+                    });
+                    btn.disabled = false;
+                    btn.innerHTML = originalText;
                 } else {
                     goToSelection();
                 }
             } catch (err) {
-                Swal.fire('Error', 'เชื่อมต่อฐานข้อมูลไม่ได้', 'error');
-                btn.disabled = false; btn.innerHTML = txt;
+                console.error(err);
+                Swal.fire('Error', 'ไม่สามารถเชื่อมต่อฐานข้อมูลได้', 'error');
+                btn.disabled = false;
+                btn.innerHTML = originalText;
             }
         }
 
@@ -141,22 +164,33 @@
             document.getElementById('loginSection').style.display = 'none';
             document.getElementById('selectionSection').style.display = 'block';
             
-            let condText = (studentInfo.classLevel == "1" || studentInfo.classLevel == "4") ? 
-                "ต้องมี ISTEM, Teacher, Parent ครบทุกกลุ่ม" : "ต้องมี Teacher และ Parent (ห้ามเลือก ISTEM)";
-            document.getElementById('userConditionText').innerText = condText;
+            // ตั้งเงื่อนไข
+            let conditionText = "";
+            if (studentInfo.classLevel == "1" || studentInfo.classLevel == "4") {
+                conditionText = "ต้องมี ISTEM, Teacher, Parent ครบทุกกลุ่ม";
+            } else {
+                conditionText = "ต้องมี Teacher และ Parent (ห้ามเลือก ISTEM)";
+            }
+            document.getElementById('userConditionText').innerText = conditionText;
 
             try {
-                // ดึงข้อมูลจาก View ที่เราสร้างไว้
-                const { data, error } = await supabase.from('activity_counts').select('*');
+                // ใช้ db แทน supabase
+                const { data, error } = await db
+                    .from('activity_counts') // เรียกจาก View
+                    .select('*');
+
                 if (error) throw error;
                 renderTable(data);
             } catch (err) {
-                Swal.fire('Error', 'โหลดข้อมูลไม่สำเร็จ', 'error');
+                console.error(err);
+                Swal.fire('Error', 'โหลดข้อมูลกิจกรรมไม่สำเร็จ', 'error');
             }
         }
 
+        // --- 2. สร้างตาราง ---
         function renderTable(data) {
             let grouped = {};
+            
             data.forEach(row => {
                 let name = row.name;
                 if (!grouped[name]) grouped[name] = { name: name, group: row.group_type, slots: {} };
@@ -166,106 +200,205 @@
             let html = '';
             for (let key in grouped) {
                 let item = grouped[key];
-                let badgeClass = item.group === 'ISTEM' ? 'badge-istem' : (item.group === 'Teacher' ? 'badge-teacher' : 'badge-parent');
-                
-                html += `<tr><td class="sticky-col bg-white border-end p-2"><div class="fw-bold small">${item.name}</div><span class="badge ${badgeClass}">${item.group}</span></td>`;
+                let badgeClass = 'badge bg-secondary';
+                if(item.group === 'ISTEM') badgeClass = 'badge badge-istem';
+                else if(item.group === 'Teacher') badgeClass = 'badge badge-teacher';
+                else if(item.group === 'Parent') badgeClass = 'badge badge-parent';
+
+                html += `<tr>`;
+                html += `<td class="sticky-col bg-white border-end p-2">
+                            <div class="fw-bold small">${item.name}</div>
+                            <span class="${badgeClass}">${item.group}</span>
+                        </td>`;
                 
                 for (let s = 1; s <= 4; s++) {
                     let slotData = item.slots[s];
                     html += `<td class="text-center p-1 align-middle">`;
                     if (slotData) {
-                        let id = slotData.id; // ใช้ ID ที่เป็น T01_01
-                        let remain = slotData.max_seats - slotData.current_seats;
+                        let id = slotData.id; // ใช้ ID จาก Supabase View
+                        let max = slotData.max_seats;
+                        let reg = slotData.current_seats;
+                        let remain = max - reg;
+                        
                         if (remain <= 0) {
                             html += `<button class="slot-btn btn-full" disabled>เต็ม</button>`;
                         } else {
                             let safeName = item.name.replace(/'/g, "\\'");
-                            html += `<button id="btn_s${s}_${id}" class="slot-btn btn-green" 
+                            let btnId = `btn_s${s}_${id}`;
+                            html += `<button id="${btnId}" class="slot-btn btn-green" 
                                     data-remain="${remain}"
                                     onclick="selectSlot(${s}, '${id}', '${safeName}', '${item.group}')">
-                                    <span class="d-block fw-bold">${remain}</span><span style="font-size:0.6rem">ว่าง</span></button>`;
+                                    <span class="d-block fw-bold">${remain}</span>
+                                    <span style="font-size:0.6rem">ว่าง</span>
+                                    </button>`;
                         }
-                    } else html += `<span class="text-muted small">-</span>`;
+                    } else {
+                        html += `<span class="text-muted small">-</span>`;
+                    }
                     html += `</td>`;
                 }
                 html += `</tr>`;
             }
+            
             document.getElementById('activityTableBody').innerHTML = html;
             document.getElementById('loading').style.display = 'none';
             document.getElementById('tableArea').style.display = 'block';
             document.getElementById('footerBar').style.display = 'flex';
         }
 
+        // --- 3. ระบบเลือกวิชา ---
         function selectSlot(slot, id, name, group) {
             if ((studentInfo.classLevel == "3" || studentInfo.classLevel == "6") && group === "ISTEM") {
-                Swal.fire({icon: 'warning', title: 'เลือกไม่ได้', text: 'ม.3 และ ม.6 เลือก ISTEM ไม่ได้ครับ', confirmButtonColor: '#ffc107'}); return;
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'เลือกไม่ได้',
+                    text: 'ระดับชั้นของคุณไม่สามารถเลือกกิจกรรม ISTEM ได้ครับ',
+                    confirmButtonColor: '#ffc107',
+                });
+                return;
             }
+
             if (selections[slot] && selections[slot].id === id) {
-                selections[slot] = null; updateUI(slot, id, false); validateAndCheck(); return;
+                selections[slot] = null;
+                updateUI(slot, id, false);
+                validateAndCheck();
+                return;
             }
             for (let s = 1; s <= 4; s++) {
                 if (s !== slot && selections[s] && selections[s].name === name) {
-                    Swal.fire({icon: 'warning', title: 'ซ้ำ!', text: `วิชา "${name}" ถูกเลือกไปแล้ว`, confirmButtonColor: '#ffc107'}); return;
+                    Swal.fire({icon: 'warning', title: 'ซ้ำ!', text: `วิชา "${name}" ถูกเลือกไปแล้ว`, confirmButtonColor: '#ffc107'});
+                    return;
                 }
             }
-            if (selections[slot]) { updateUI(slot, selections[slot].id, false); }
+            if (selections[slot]) {
+                let oldId = selections[slot].id;
+                updateUI(slot, oldId, false);
+            }
             selections[slot] = { id: id, name: name, group: group };
             updateUI(slot, id, true);
             validateAndCheck();
         }
 
         function updateUI(slot, id, isSelected) {
-            let btn = document.getElementById(`btn_s${slot}_${id}`);
+            let btnId = `btn_s${slot}_${id}`;
+            let btn = document.getElementById(btnId);
             if (btn) {
                 let remain = btn.getAttribute('data-remain');
-                btn.className = isSelected ? 'slot-btn btn-selected' : 'slot-btn btn-green';
-                btn.innerHTML = isSelected ? `<i class="bi bi-check-lg"></i> เลือก` : `<span class="d-block fw-bold">${remain}</span><span style="font-size:0.6rem">ว่าง</span>`;
+                btn.className = 'slot-btn'; 
+                if (isSelected) {
+                    btn.classList.add('btn-selected');
+                    btn.innerHTML = `<i class="bi bi-check-lg"></i> เลือก`;
+                } else {
+                    btn.classList.add('btn-green');
+                    btn.innerHTML = `<span class="d-block fw-bold">${remain}</span><span style="font-size:0.6rem">ว่าง</span>`; 
+                }
             }
         }
 
+        // --- 4. ตรวจสอบเงื่อนไข ---
         function validateAndCheck() {
             let count = 0;
             let groups = { 'ISTEM': 0, 'Teacher': 0, 'Parent': 0 };
-            for (let s = 1; s <= 4; s++) if (selections[s]) { count++; groups[selections[s].group]++; }
+
+            for (let s = 1; s <= 4; s++) {
+                if (selections[s]) {
+                    count++;
+                    if (groups[selections[s].group] !== undefined) groups[selections[s].group]++;
+                }
+            }
 
             let statusDiv = document.getElementById('statusText');
             let btn = document.getElementById('btnConfirm');
-            let isComplete = (count === 4);
+            
+            let isTimeComplete = (count === 4);
             let isGroupValid = false;
+            let missing = [];
+
             let isMustHaveISTEM = (studentInfo.classLevel == "1" || studentInfo.classLevel == "4");
 
             if (isMustHaveISTEM) {
                 if (groups['ISTEM'] >= 1 && groups['Teacher'] >= 1 && groups['Parent'] >= 1) isGroupValid = true;
+                else {
+                    if (groups['ISTEM'] == 0) missing.push("ISTEM");
+                    if (groups['Teacher'] == 0) missing.push("Teacher");
+                    if (groups['Parent'] == 0) missing.push("Parent");
+                }
             } else {
                 if (groups['Teacher'] >= 1 && groups['Parent'] >= 1) isGroupValid = true;
+                else {
+                    if (groups['Teacher'] == 0) missing.push("Teacher");
+                    if (groups['Parent'] == 0) missing.push("Parent");
+                }
             }
 
-            if (isComplete && isGroupValid) {
+            if (!isTimeComplete) missing.unshift("เวลาไม่ครบ");
+
+            if (isTimeComplete && isGroupValid) {
                 statusDiv.innerHTML = `<span class="text-success"><i class="bi bi-check-circle-fill"></i> ครบถ้วนพร้อมส่ง!</span>`;
-                btn.disabled = false; btn.classList.replace('btn-secondary', 'btn-primary');
+                btn.disabled = false;
+                btn.classList.remove('btn-secondary');
+                btn.classList.add('btn-primary');
             } else {
-                statusDiv.innerHTML = "ยังเลือกไม่ครบเงื่อนไข";
-                statusDiv.className = 'fw-bold text-danger small';
-                btn.disabled = true; btn.classList.replace('btn-primary', 'btn-secondary');
+                statusDiv.innerHTML = "ขาด: " + missing.join(", ");
+                statusDiv.classList.add('text-danger');
+                btn.disabled = true;
+                btn.classList.remove('btn-primary');
+                btn.classList.add('btn-secondary');
             }
         }
 
+        // --- 5. บันทึกลง Supabase ---
         function submitAll() {
             Swal.fire({
-                title: 'ยืนยัน?', icon: 'question', showCancelButton: true, confirmButtonText: 'ยืนยัน', confirmButtonColor: '#0d47a1'
+                title: 'ยืนยันการลงทะเบียน?',
+                text: "ตรวจสอบข้อมูลให้ถูกต้องก่อนส่งนะครับ",
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonColor: '#0d47a1',
+                confirmButtonText: 'ยืนยัน',
+                cancelButtonText: 'ยกเลิก'
             }).then(async (result) => {
                 if (result.isConfirmed) {
-                    Swal.fire({title: 'กำลังบันทึก...', didOpen: () => Swal.showLoading()});
+                    Swal.fire({
+                        title: 'กำลังบันทึกข้อมูล...',
+                        allowOutsideClick: false,
+                        didOpen: () => { Swal.showLoading(); }
+                    });
+
                     const payload = {
-                        student_name: studentInfo.name, student_id: studentInfo.id, class_level: studentInfo.classLevel, room: studentInfo.room, number: studentInfo.number,
-                        slot1_id: selections[1].id, slot2_id: selections[2].id, slot3_id: selections[3].id, slot4_id: selections[4].id
+                        student_name: studentInfo.name,
+                        student_id: studentInfo.id,
+                        class_level: studentInfo.classLevel,
+                        room: studentInfo.room,
+                        number: studentInfo.number,
+                        slot1_id: selections[1].id,
+                        slot2_id: selections[2].id,
+                        slot3_id: selections[3].id,
+                        slot4_id: selections[4].id
                     };
+
                     try {
-                        const { error } = await supabase.from('registrations').insert([payload]);
+                        // ใช้ db แทน supabase
+                        const { error } = await db
+                            .from('registrations')
+                            .insert([payload]);
+
                         if (error) throw error;
-                        Swal.fire({icon: 'success', title: 'สำเร็จ!', confirmButtonColor: '#198754'}).then(() => location.reload());
+
+                        Swal.fire({
+                            icon: 'success', 
+                            title: 'สำเร็จ!', 
+                            text: 'บันทึกข้อมูลเรียบร้อยแล้ว', 
+                            confirmButtonColor: '#198754'
+                        }).then(() => location.reload());
+
                     } catch (err) {
-                        Swal.fire({icon: 'error', title: 'เกิดข้อผิดพลาด', text: err.code === '23505' ? 'รหัสนักเรียนซ้ำ' : err.message});
+                        console.error(err);
+                        if (err.code === '23505') { 
+                             Swal.fire({icon: 'error', title: 'ผิดพลาด', text: 'รหัสนักเรียนนี้ลงทะเบียนไปแล้ว'});
+                        } else {
+                             Swal.fire({icon: 'error', title: 'เกิดข้อผิดพลาด', text: err.message});
+                        }
                     }
                 }
             });
