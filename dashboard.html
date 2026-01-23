@@ -40,6 +40,7 @@
         .box-none { background-color: #f8f9fa; color: #adb5bd; }
 
         .sticky-col { position: sticky; left: 0; background: white; z-index: 5; border-right: 2px solid #dee2e6; min-width: 150px; }
+        .total-col { background-color: #eef2f7 !important; border-left: 2px solid #dee2e6; font-weight: bold; color: var(--primary-color); }
         
         @media (max-width: 576px) { 
             .header-text h4 { font-size: 1.2rem; }
@@ -53,6 +54,9 @@
         <div class="container">
             <h4 class="fw-bold m-0"><i class="bi bi-bar-chart-line-fill"></i> Dashboard ที่นั่งว่าง</h4>
             <p class="m-0 text-white-50 small">อัปเดตข้อมูล Real-time</p>
+            <div class="mt-2 badge bg-white text-primary rounded-pill px-3 py-2 shadow-sm">
+                ยอดลงทะเบียนรวมทั้งระบบ: <span id="grandTotal" class="fw-bold fs-6">...</span> ที่นั่ง
+            </div>
         </div>
     </div>
 
@@ -77,10 +81,11 @@
                     <thead class="table-dark text-center small">
                         <tr>
                             <th class="sticky-col align-middle">รายชื่อกิจกรรม</th>
-                            <th width="18%">09:00<br><span class="badge bg-secondary">Slot 1</span></th>
-                            <th width="18%">10:30<br><span class="badge bg-secondary">Slot 2</span></th>
-                            <th width="18%">13:00<br><span class="badge bg-secondary">Slot 3</span></th>
-                            <th width="18%">14:30<br><span class="badge bg-secondary">Slot 4</span></th>
+                            <th width="15%">09:00<br><span class="badge bg-secondary">Slot 1</span></th>
+                            <th width="15%">10:30<br><span class="badge bg-secondary">Slot 2</span></th>
+                            <th width="15%">13:00<br><span class="badge bg-secondary">Slot 3</span></th>
+                            <th width="15%">14:30<br><span class="badge bg-secondary">Slot 4</span></th>
+                            <th width="10%" class="align-middle bg-warning text-dark border-start">รวมยอด</th>
                         </tr>
                     </thead>
                     <tbody id="tableBody">
@@ -97,7 +102,7 @@
 
     <script>
         // ==========================================
-        // ⚠️ การตั้งค่า Database (ใช้ชุดเดิมกับหน้า index)
+        // ⚠️ การตั้งค่า Database
         // ==========================================
         const SUPABASE_URL = 'https://pqkaqsxmbewilzruogdw.supabase.co'; 
         const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBxa2Fxc3htYmV3aWx6cnVvZ2R3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg0ODgzMTksImV4cCI6MjA4NDA2NDMxOX0.TFyfNcFXcUUF29Iexmkjf6EaNIXAv8KuOFY_ydAY_z8'; 
@@ -108,12 +113,11 @@
         document.addEventListener('DOMContentLoaded', fetchData);
 
         async function fetchData() {
-            // แสดง Loading
             document.getElementById('loading').style.display = 'block';
             document.getElementById('tableArea').style.display = 'none';
+            document.getElementById('grandTotal').innerText = '...';
 
             try {
-                // ดึงข้อมูลจาก View เดิมที่มีอยู่
                 const { data, error } = await client
                     .from('activity_counts')
                     .select('*');
@@ -124,7 +128,7 @@
 
             } catch (err) {
                 console.error(err);
-                document.getElementById('tableBody').innerHTML = `<tr><td colspan="5" class="text-center text-danger p-4">เกิดข้อผิดพลาดในการโหลดข้อมูล</td></tr>`;
+                document.getElementById('tableBody').innerHTML = `<tr><td colspan="6" class="text-center text-danger p-4">เกิดข้อผิดพลาดในการโหลดข้อมูล</td></tr>`;
                 document.getElementById('loading').style.display = 'none';
                 document.getElementById('tableArea').style.display = 'block';
             }
@@ -132,8 +136,9 @@
 
         function renderDashboard(data) {
             let grouped = {};
+            let systemTotal = 0; // ตัวแปรเก็บยอดรวมทั้งระบบ
             
-            // จัดกลุ่มข้อมูลตามชื่อกิจกรรม
+            // จัดกลุ่มข้อมูล
             data.forEach(row => {
                 let name = row.name;
                 if (!grouped[name]) grouped[name] = { name: name, group: row.group_type, slots: {} };
@@ -142,25 +147,24 @@
 
             let html = '';
             
-            // วนลูปสร้างแถวตาราง
             for (let key in grouped) {
                 let item = grouped[key];
-                
-                // Badge สีตามกลุ่มสาระ
                 let groupBadge = 'bg-secondary';
                 if(item.group === 'ISTEM') groupBadge = 'bg-primary';
                 else if(item.group === 'Teacher') groupBadge = 'bg-info text-dark';
                 else if(item.group === 'Parent') groupBadge = 'bg-warning text-dark';
 
+                let rowTotal = 0; // ตัวแปรเก็บยอดรวมต่อกิจกรรม
+
                 html += `<tr>`;
                 
-                // คอลัมน์ชื่อกิจกรรม
+                // คอลัมน์ชื่อ
                 html += `<td class="sticky-col bg-white border-end p-2 align-middle">
                             <div class="fw-bold text-dark" style="font-size: 0.9rem;">${item.name}</div>
                             <span class="badge ${groupBadge}" style="font-size: 0.65rem;">${item.group}</span>
                         </td>`;
                 
-                // วนลูป 4 Slot
+                // Loop 4 Slots
                 for (let s = 1; s <= 4; s++) {
                     let slotData = item.slots[s];
                     html += `<td class="status-cell">`;
@@ -170,7 +174,10 @@
                         let max = slotData.max_seats;
                         let isFull = current >= max;
                         
-                        // เลือก Style ตามสถานะ
+                        // บวกยอด
+                        rowTotal += current;
+                        systemTotal += current;
+
                         let boxClass = isFull ? 'box-full' : 'box-avail';
                         let statusText = isFull ? 'เต็ม' : 'ว่าง';
                         
@@ -183,10 +190,19 @@
                     }
                     html += `</td>`;
                 }
+
+                // เพิ่มคอลัมน์รวมยอดท้ายตาราง
+                html += `<td class="status-cell total-col align-middle">
+                            <div style="font-size: 1.1rem;">${rowTotal}</div>
+                            <small class="text-muted" style="font-size: 0.65rem;">คน</small>
+                         </td>`;
+
                 html += `</tr>`;
             }
 
             document.getElementById('tableBody').innerHTML = html;
+            document.getElementById('grandTotal').innerText = systemTotal.toLocaleString(); // แสดงยอดรวมด้านบน
+
             document.getElementById('loading').style.display = 'none';
             document.getElementById('tableArea').style.display = 'block';
         }
