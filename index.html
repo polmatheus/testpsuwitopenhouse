@@ -10,6 +10,8 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    
+    <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
 
     <style>
         :root { --primary-color: #0d47a1; --secondary-color: #1976d2; --bg-color: #f0f4f8; }
@@ -76,9 +78,11 @@
                         <select id="inputClass" class="form-select" required>
                             <option value="">เลือก</option>
                             <option value="1">ม.1</option>
-                            <option value="2">ม.2</option> <option value="3">ม.3</option>
+                            <option value="2">ม.2</option>
+                            <option value="3">ม.3</option>
                             <option value="4">ม.4</option>
-                            <option value="5">ม.5</option> <option value="6">ม.6</option>
+                            <option value="5">ม.5</option>
+                            <option value="6">ม.6</option>
                         </select>
                     </div>
                     <div class="col-4">
@@ -125,35 +129,44 @@
         </div>
 
         <div id="successSection" class="main-card receipt-card text-center" style="display:none;">
-            <i class="bi bi-check-circle-fill text-success" style="font-size: 4rem;"></i>
-            <h4 class="fw-bold mt-2 text-success">ลงทะเบียนสำเร็จ!</h4>
-            <p class="text-muted small">บันทึกข้อมูลเข้าสู่ระบบเรียบร้อยแล้ว<br>แคปหน้าจอนี้ไว้เป็นหลักฐาน</p>
             
-            <div class="card bg-light border-0 p-3 mb-3 text-start shadow-sm">
-                <div class="row">
-                    <div class="col-6"><strong>ชื่อ:</strong> <span id="successName"></span></div>
-                    <div class="col-6"><strong>รหัส:</strong> <span id="successId"></span></div>
-                    <div class="col-12 mt-1"><strong>ชั้น:</strong> ม.<span id="successClass"></span>/ <span id="successRoom"></span> เลขที่ <span id="successNumber"></span></div>
+            <div id="captureArea" class="bg-white p-2">
+                <i class="bi bi-check-circle-fill text-success" style="font-size: 4rem;"></i>
+                <h4 class="fw-bold mt-2 text-success">ลงทะเบียนสำเร็จ!</h4>
+                <p class="text-muted small">บันทึกข้อมูลเข้าสู่ระบบเรียบร้อยแล้ว</p>
+                
+                <div class="card bg-light border-0 p-3 mb-3 text-start shadow-sm">
+                    <div class="row">
+                        <div class="col-6"><strong>ชื่อ:</strong> <span id="successName"></span></div>
+                        <div class="col-6"><strong>รหัส:</strong> <span id="successId"></span></div>
+                        <div class="col-12 mt-1"><strong>ชั้น:</strong> ม.<span id="successClass"></span>/ <span id="successRoom"></span> เลขที่ <span id="successNumber"></span></div>
+                    </div>
+                </div>
+
+                <h6 class="fw-bold text-start mb-2"><i class="bi bi-calendar-check"></i> ตารางกิจกรรมที่เลือก</h6>
+                <div class="table-responsive">
+                    <table class="table table-bordered table-sm">
+                        <thead class="table-primary">
+                            <tr>
+                                <th width="35%">เวลา</th>
+                                <th>กิจกรรม</th>
+                            </tr>
+                        </thead>
+                        <tbody id="successTableBody">
+                        </tbody>
+                    </table>
                 </div>
             </div>
 
-            <h6 class="fw-bold text-start mb-2"><i class="bi bi-calendar-check"></i> ตารางกิจกรรมที่เลือก</h6>
-            <div class="table-responsive">
-                <table class="table table-bordered table-sm">
-                    <thead class="table-primary">
-                        <tr>
-                            <th width="35%">เวลา</th>
-                            <th>กิจกรรม</th>
-                        </tr>
-                    </thead>
-                    <tbody id="successTableBody">
-                    </tbody>
-                </table>
+            <div class="d-grid gap-2 mt-4">
+                <button class="btn btn-success rounded-pill fw-bold" onclick="saveAsImage()">
+                    <i class="bi bi-download"></i> บันทึกผลเป็นรูปภาพ
+                </button>
+                <button class="btn btn-outline-secondary rounded-pill" onclick="location.reload()">
+                    <i class="bi bi-house-door-fill"></i> กลับหน้าแรก
+                </button>
             </div>
-            
-            <button class="btn btn-outline-primary w-100 mt-3 rounded-pill" onclick="location.reload()">
-                <i class="bi bi-house-door-fill"></i> กลับหน้าแรก
-            </button>
+
         </div>
 
     </div>
@@ -164,9 +177,6 @@
     </div>
 
     <script>
-        // ==========================================
-        // ⚠️ ตั้งค่า Supabase (KEY ของคุณ)
-        // ==========================================
         const SUPABASE_URL = 'https://pqkaqsxmbewilzruogdw.supabase.co'; 
         const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBxa2Fxc3htYmV3aWx6cnVvZ2R3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg0ODgzMTksImV4cCI6MjA4NDA2NDMxOX0.TFyfNcFXcUUF29Iexmkjf6EaNIXAv8KuOFY_ydAY_z8'; 
 
@@ -228,11 +238,9 @@
             document.getElementById('selectionSection').style.display = 'block';
             
             let conditionText = "";
-            // เงื่อนไข: ม.1 และ ม.4 ต้องมี ISTEM
             if (studentInfo.classLevel == "1" || studentInfo.classLevel == "4") {
                 conditionText = "ต้องมี ISTEM, Teacher, Parent ครบทุกกลุ่ม";
             } else {
-                // ม.2, 3, 5, 6 ห้ามเลือก ISTEM
                 conditionText = "ต้องมี Teacher และ Parent (ห้ามเลือก ISTEM)";
             }
             document.getElementById('userConditionText').innerText = conditionText;
@@ -253,7 +261,6 @@
         // --- 2. สร้างตาราง ---
         function renderTable(data) {
             let grouped = {};
-            
             data.forEach(row => {
                 let name = row.name;
                 if (!grouped[name]) grouped[name] = { name: name, group: row.group_type, slots: {} };
@@ -302,7 +309,6 @@
                 }
                 html += `</tr>`;
             }
-            
             document.getElementById('activityTableBody').innerHTML = html;
             document.getElementById('loading').style.display = 'none';
             document.getElementById('tableArea').style.display = 'block';
@@ -311,7 +317,6 @@
 
         // --- 3. ระบบเลือกวิชา ---
         function selectSlot(slot, id, name, group) {
-            // เช็คเงื่อนไขห้าม ISTEM สำหรับ ม.2, 3, 5, 6
             const nonIstemLevels = ["2", "3", "5", "6"];
             if (nonIstemLevels.includes(studentInfo.classLevel) && group === "ISTEM") {
                 Swal.fire({
@@ -360,7 +365,7 @@
             }
         }
 
-        // --- 4. ตรวจสอบเงื่อนไขการส่ง ---
+        // --- 4. ตรวจสอบเงื่อนไข ---
         function validateAndCheck() {
             let count = 0;
             let groups = { 'ISTEM': 0, 'Teacher': 0, 'Parent': 0 };
@@ -507,8 +512,40 @@
             document.getElementById('successTableBody').innerHTML = html;
             window.scrollTo(0, 0);
         }
+
+        // --- 7. ฟังก์ชันบันทึกภาพ ---
+        function saveAsImage() {
+            Swal.fire({
+                title: 'กำลังสร้างรูปภาพ...',
+                text: 'กรุณารอสักครู่',
+                allowOutsideClick: false,
+                didOpen: () => { Swal.showLoading(); }
+            });
+
+            // เลือกเฉพาะส่วนที่จะแคป (id="captureArea")
+            const element = document.getElementById("captureArea");
+            
+            html2canvas(element, { 
+                scale: 2, // เพิ่มความชัด 2 เท่า
+                backgroundColor: "#ffffff" // พื้นหลังขาว
+            }).then(canvas => {
+                Swal.close();
+                
+                // สร้างลิงก์ดาวน์โหลด
+                const link = document.createElement('a');
+                link.download = `Result_${studentInfo.id}.png`;
+                link.href = canvas.toDataURL("image/png");
+                link.click();
+
+                // แจ้งเตือนเผื่อดาวน์โหลดไม่ได้
+                Swal.fire({
+                    icon: 'success',
+                    title: 'บันทึกแล้ว',
+                    text: 'หากรูปไม่ขึ้น ให้ลองแคปหน้าจอแทนนะครับ',
+                    timer: 3000
+                });
+            });
+        }
     </script>
 </body>
 </html>
-
-```
