@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ระบบเช็คชื่อกิจกรรม - สำหรับครู</title>
+    
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <style>
+        :root { --primary-color: #0d47a1; --bg-color: #f0f4f8; }
+        body { font-family: 'Sarabun', sans-serif; background-color: var(--bg-color); padding-bottom: 50px; }
+        .card-summary { transition: transform 0.2s; }
+        .card-summary:hover { transform: translateY(-5px); }
+        
+        .status-btn { border: 1px solid #dee2e6; background: white; color: #6c757d; width: 100%; border-radius: 5px; padding: 5px; font-size: 0.9rem; }
+        .status-btn.active-ma { background-color: #198754; color: white; border-color: #198754; }
+        .status-btn.active-sai { background-color: #ffc107; color: black; border-color: #ffc107; }
+        .status-btn.active-la { background-color: #0dcaf0; color: white; border-color: #0dcaf0; }
+        .status-btn.active-khad { background-color: #dc3545; color: white; border-color: #dc3545; }
+        
+        .student-row { transition: background 0.3s; }
+        .student-row:hover { background-color: #f8f9fa; }
+    </style>
+</head>
+<body>
+
+    <div class="modal fade" id="loginModal" data-bs-backdrop="static" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title"><i class="bi bi-shield-lock"></i> เข้าสู่ระบบอาจารย์</h5>
+                </div>
+                <div class="modal-body">
+                    <input type="password" id="teacherPass" class="form-control text-center fs-4" placeholder="รหัสผ่าน (1234)">
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-primary w-100" onclick="checkPass()">เข้าใช้งาน</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <nav class="navbar navbar-dark bg-primary shadow-sm mb-4">
+        <div class="container">
+            <span class="navbar-brand mb-0 h1"><i class="bi bi-clipboard-check"></i> ระบบเช็คชื่อกิจกรรม</span>
+        </div>
+    </nav>
+
+    <div class="container" id="mainContent" style="display:none;">
+        
+        <div class="card shadow-sm mb-4">
+            <div class="card-body">
+                <div class="row g-2">
+                    <div class="col-md-4">
+                        <label class="form-label fw-bold">เลือกช่วงเวลา (Slot)</label>
+                        <select id="selectSlot" class="form-select" onchange="loadActivities()">
+                            <option value="1">09:00 - 10:20 (Slot 1)</option>
+                            <option value="2">10:30 - 11:50 (Slot 2)</option>
+                            <option value="3">13:00 - 14:20 (Slot 3)</option>
+                            <option value="4">14:30 - 15:50 (Slot 4)</option>
+                        </select>
+                    </div>
+                    <div class="col-md-8">
+                        <label class="form-label fw-bold">เลือกกิจกรรม</label>
+                        <select id="selectActivity" class="form-select" onchange="loadStudents()">
+                            <option value="">-- กรุณาเลือกกิจกรรม --</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row g-2 mb-3 text-center" id="summaryArea" style="display:none;">
+            <div class="col-3"><div class="card p-2 border-success border-2 bg-white"><h3 class="m-0 text-success" id="countMa">0</h3><small>มา</small></div></div>
+            <div class="col-3"><div class="card p-2 border-warning border-2 bg-white"><h3 class="m-0 text-warning" id="countSai">0</h3><small>สาย</small></div></div>
+            <div class="col-3"><div class="card p-2 border-info border-2 bg-white"><h3 class="m-0 text-info" id="countLa">0</h3><small>ลา</small></div></div>
+            <div class="col-3"><div class="card p-2 border-danger border-2 bg-white"><h3 class="m-0 text-danger" id="countKhad">0</h3><small>ขาด</small></div></div>
+            <div class="col-12 text-muted small mt-1">ทั้งหมด: <span id="countTotal">0</span> คน</div>
+        </div>
+
+        <div class="card shadow-sm">
+            <div class="card-header bg-white">
+                <h5 class="m-0"><i class="bi bi-people"></i> รายชื่อนักเรียน</h5>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-bordered mb-0 align-middle">
+                        <thead class="table-light text-center">
+                            <tr>
+                                <th width="5%">#</th>
+                                <th width="15%">รหัส</th>
+                                <th width="25%">ชื่อ-สกุล</th>
+                                <th width="15%">ชั้น/ห้อง</th>
+                                <th width="40%">สถานะ</th>
+                            </tr>
+                        </thead>
+                        <tbody id="studentTableBody">
+                            <tr><td colspan="5" class="text-center py-5 text-muted">กรุณาเลือกกิจกรรมเพื่อแสดงรายชื่อ</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // ==========================================
+        // ⚠️ ตั้งค่า Supabase (ใช้ Key ตัวเดิมได้เลย)
+        // ==========================================
+        const SUPABASE_URL = 'https://pqkaqsxmbewilzruogdw.supabase.co'; 
+        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBxa2Fxc3htYmV3aWx6cnVvZ2R3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg0ODgzMTksImV4cCI6MjA4NDA2NDMxOX0.TFyfNcFXcUUF29Iexmkjf6EaNIXAv8KuOFY_ydAY_z8'; 
+
+        const client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+        let currentStudents = [];
+
+        // --- 1. Login ---
+        const loginModal = new bootstrap.Modal(document.getElementById('loginModal'));
+        window.onload = () => { loginModal.show(); }
+
+        function checkPass() {
+            const pass = document.getElementById('teacherPass').value;
+            if (pass === '1234') { // 🔥 รหัสผ่านครู (แก้ได้ตรงนี้)
+                loginModal.hide();
+                document.getElementById('mainContent').style.display = 'block';
+                loadActivities();
+            } else {
+                Swal.fire('รหัสผิด', 'กรุณาลองใหม่', 'error');
+            }
+        }
+
+        // --- 2. Load Activities ---
+        async function loadActivities() {
+            const slot = document.getElementById('selectSlot').value;
+            document.getElementById('selectActivity').innerHTML = '<option>กำลังโหลด...</option>';
+            
+            try {
+                // ดึงกิจกรรมเฉพาะ Slot ที่เลือก
+                const { data, error } = await client
+                    .from('activities')
+                    .select('id, name')
+                    .eq('slot', slot)
+                    .order('name');
+                
+                if (error) throw error;
+
+                let html = '<option value="">-- เลือกกิจกรรม --</option>';
+                data.forEach(act => {
+                    html += `<option value="${act.id}">${act.name}</option>`;
+                });
+                document.getElementById('selectActivity').innerHTML = html;
+            } catch (err) {
+                console.error(err);
+                Swal.fire('Error', 'โหลดกิจกรรมไม่สำเร็จ', 'error');
+            }
+        }
+
+        // --- 3. Load Students ---
+        async function loadStudents() {
+            const slot = document.getElementById('selectSlot').value;
+            const actId = document.getElementById('selectActivity').value;
+            const tbody = document.getElementById('studentTableBody');
+
+            if (!actId) {
+                tbody.innerHTML = '<tr><td colspan="5" class="text-center py-5">กรุณาเลือกกิจกรรม</td></tr>';
+                document.getElementById('summaryArea').style.display = 'none';
+                return;
+            }
+
+            tbody.innerHTML = '<tr><td colspan="5" class="text-center py-5"><div class="spinner-border text-primary"></div></td></tr>';
+
+            try {
+                // Query: เลือกคนที่มี slotX_id ตรงกับกิจกรรมนี้
+                // และดึง status ของ slot นั้นมาด้วย
+                const { data, error } = await client
+                    .from('registrations')
+                    .select(`id, student_id, student_name, class_level, room, number, slot${slot}_status`)
+                    .eq(`slot${slot}_id`, actId)
+                    .order('class_level')
+                    .order('room')
+                    .order('number'); // เรียงตามชั้น/ห้อง/เลขที่
+
+                if (error) throw error;
+
+                currentStudents = data;
+                renderStudentTable(data, slot);
+            } catch (err) {
+                console.error(err);
+                Swal.fire('Error', 'โหลดรายชื่อไม่สำเร็จ', 'error');
+            }
+        }
+
+        // --- 4. Render Table & Buttons ---
+        function renderStudentTable(data, slot) {
+            const tbody = document.getElementById('studentTableBody');
+            
+            if (data.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" class="text-center py-5 text-muted">ยังไม่มีนักเรียนลงทะเบียนวิชานี้</td></tr>';
+                updateSummary();
+                return;
+            }
+
+            let html = '';
+            data.forEach((std, index) => {
+                // ดึงสถานะปัจจุบัน (เช่น 'มา', 'สาย')
+                let status = std[`slot${slot}_status`] || 'รอเช็ค';
+
+                html += `<tr class="student-row">
+                    <td class="text-center">${index + 1}</td>
+                    <td class="text-center">${std.student_id}</td>
+                    <td>${std.student_name}</td>
+                    <td class="text-center">ม.${std.class_level}/${std.room} (${std.number})</td>
+                    <td>
+                        <div class="row g-1">
+                            <div class="col-3"><button onclick="setStatus('${std.id}', ${slot}, 'มา', this)" class="status-btn ${status==='มา'?'active-ma':''}">มา</button></div>
+                            <div class="col-3"><button onclick="setStatus('${std.id}', ${slot}, 'สาย', this)" class="status-btn ${status==='สาย'?'active-sai':''}">สาย</button></div>
+                            <div class="col-3"><button onclick="setStatus('${std.id}', ${slot}, 'ลา', this)" class="status-btn ${status==='ลา'?'active-la':''}">ลา</button></div>
+                            <div class="col-3"><button onclick="setStatus('${std.id}', ${slot}, 'ขาด', this)" class="status-btn ${status==='ขาด'?'active-khad':''}">ขาด</button></div>
+                        </div>
+                    </td>
+                </tr>`;
+            });
+
+            tbody.innerHTML = html;
+            document.getElementById('summaryArea').style.display = 'flex';
+            updateSummary(data, slot);
+        }
+
+        // --- 5. Update Status (Real-time) ---
+        async function setStatus(uuid, slot, status, btnElement) {
+            // 1. เปลี่ยนสีปุ่มทันที (UX)
+            let parent = btnElement.parentElement.parentElement;
+            let btns = parent.querySelectorAll('.status-btn');
+            btns.forEach(b => {
+                b.className = 'status-btn'; // Reset
+            });
+            
+            // Add Active Class
+            if(status === 'มา') btnElement.classList.add('active-ma');
+            else if(status === 'สาย') btnElement.classList.add('active-sai');
+            else if(status === 'ลา') btnElement.classList.add('active-la');
+            else if(status === 'ขาด') btnElement.classList.add('active-khad');
+
+            // 2. อัปเดตข้อมูลใน Local Array (เพื่อให้ Dashboard อัปเดตทันที)
+            let student = currentStudents.find(s => s.id === uuid);
+            if(student) {
+                student[`slot${slot}_status`] = status;
+                updateSummary(currentStudents, slot);
+            }
+
+            // 3. ส่งข้อมูลไป Supabase (Background)
+            try {
+                const { error } = await client
+                    .from('registrations')
+                    .update({ [`slot${slot}_status`]: status })
+                    .eq('id', uuid);
+
+                if (error) throw error;
+                // Success (เงียบๆ ไม่ต้องเด้ง Alert รบกวนครู)
+            } catch (err) {
+                console.error(err);
+                Swal.fire({
+                    toast: true,
+                    position: 'top-end',
+                    icon: 'error',
+                    title: 'บันทึกไม่สำเร็จ เช็คเน็ตด้วยครับ',
+                    showConfirmButton: false,
+                    timer: 1500
+                });
+            }
+        }
+
+        // --- 6. Calculate Summary ---
+        function updateSummary(data, slot) {
+            let ma = 0, sai = 0, la = 0, khad = 0;
+            
+            data.forEach(s => {
+                let status = s[`slot${slot}_status`];
+                if(status === 'มา') ma++;
+                else if(status === 'สาย') sai++;
+                else if(status === 'ลา') la++;
+                else if(status === 'ขาด') khad++;
+            });
+
+            document.getElementById('countTotal').innerText = data.length;
+            document.getElementById('countMa').innerText = ma;
+            document.getElementById('countSai').innerText = sai;
+            document.getElementById('countLa').innerText = la;
+            document.getElementById('countKhad').innerText = khad;
+        }
+
+    </script>
+</body>
+</html>
