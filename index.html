@@ -10,7 +10,6 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    
     <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
 
     <style>
@@ -152,8 +151,7 @@
                                 <th>กิจกรรม</th>
                             </tr>
                         </thead>
-                        <tbody id="successTableBody">
-                        </tbody>
+                        <tbody id="successTableBody"></tbody>
                     </table>
                 </div>
             </div>
@@ -166,7 +164,6 @@
                     <i class="bi bi-house-door-fill"></i> กลับหน้าแรก
                 </button>
             </div>
-
         </div>
 
     </div>
@@ -184,11 +181,11 @@
 
         let selections = { 1: null, 2: null, 3: null, 4: null }; 
         let studentInfo = {}; 
+        let activityDataMap = {}; // ✅ เก็บข้อมูลกิจกรรมไว้ที่นี่ แทนการส่งผ่าน HTML
 
-        // --- 1. เช็คสิทธิ์และเข้าสู่ระบบ ---
+        // --- 1. เช็คสิทธิ์ ---
         async function checkAndGo(e) {
             e.preventDefault();
-            
             studentInfo = {
                 name: document.getElementById('inputName').value,
                 id: document.getElementById('inputId').value.trim(),
@@ -212,22 +209,15 @@
                 if (error) throw error;
 
                 if (data) {
-                    Swal.fire({
-                        icon: 'warning',
-                        title: 'ลงทะเบียนแล้ว',
-                        text: 'รหัสนักเรียนนี้ลงทะเบียนเรียบร้อยแล้วครับ',
-                        confirmButtonColor: '#0d47a1'
-                    });
-                    btn.disabled = false;
-                    btn.innerHTML = originalText;
+                    Swal.fire({icon: 'warning', title: 'ลงทะเบียนแล้ว', text: 'รหัสนักเรียนนี้ลงทะเบียนเรียบร้อยแล้ว', confirmButtonColor: '#0d47a1'});
+                    btn.disabled = false; btn.innerHTML = originalText;
                 } else {
                     goToSelection();
                 }
             } catch (err) {
                 console.error(err);
                 Swal.fire('Error', 'ไม่สามารถเชื่อมต่อฐานข้อมูลได้', 'error');
-                btn.disabled = false;
-                btn.innerHTML = originalText;
+                btn.disabled = false; btn.innerHTML = originalText;
             }
         }
 
@@ -246,10 +236,7 @@
             document.getElementById('userConditionText').innerText = conditionText;
 
             try {
-                const { data, error } = await client
-                    .from('activity_counts')
-                    .select('*');
-
+                const { data, error } = await client.from('activity_counts').select('*');
                 if (error) throw error;
                 renderTable(data);
             } catch (err) {
@@ -258,10 +245,15 @@
             }
         }
 
-        // --- 2. สร้างตาราง ---
+        // --- 2. สร้างตาราง (แก้บั๊กชื่อกิจกรรม) ---
         function renderTable(data) {
             let grouped = {};
+            activityDataMap = {}; // Reset map
+
             data.forEach(row => {
+                // ✅ เก็บข้อมูลลง Map โดยใช้ ID เป็นกุญแจ (แก้ปัญหาชื่อยาว/มีเครื่องหมาย)
+                activityDataMap[row.id] = row;
+
                 let name = row.name;
                 if (!grouped[name]) grouped[name] = { name: name, group: row.group_type, slots: {} };
                 grouped[name].slots[row.slot] = row; 
@@ -270,34 +262,26 @@
             let html = '';
             for (let key in grouped) {
                 let item = grouped[key];
-                let badgeClass = 'badge bg-secondary';
-                if(item.group === 'ISTEM') badgeClass = 'badge badge-istem';
-                else if(item.group === 'Teacher') badgeClass = 'badge badge-teacher';
-                else if(item.group === 'Parent') badgeClass = 'badge badge-parent';
-
+                let badgeClass = item.group === 'ISTEM' ? 'badge-istem' : (item.group === 'Teacher' ? 'badge-teacher' : 'badge-parent');
+                
                 html += `<tr>`;
-                html += `<td class="sticky-col bg-white border-end p-2">
-                            <div class="fw-bold small">${item.name}</div>
-                            <span class="${badgeClass}">${item.group}</span>
-                        </td>`;
+                html += `<td class="sticky-col bg-white border-end p-2"><div class="fw-bold small">${item.name}</div><span class="badge ${badgeClass}">${item.group}</span></td>`;
                 
                 for (let s = 1; s <= 4; s++) {
                     let slotData = item.slots[s];
                     html += `<td class="text-center p-1 align-middle">`;
                     if (slotData) {
                         let id = slotData.id; 
-                        let max = slotData.max_seats;
-                        let reg = slotData.current_seats;
-                        let remain = max - reg;
+                        let remain = slotData.max_seats - slotData.current_seats;
                         
                         if (remain <= 0) {
                             html += `<button class="slot-btn btn-full" disabled>เต็ม</button>`;
                         } else {
-                            let safeName = item.name.replace(/'/g, "\\'");
+                            // ✅ ส่งแค่ ID เข้าไปในฟังก์ชัน (แก้ปัญหา HTML พัง)
                             let btnId = `btn_s${s}_${id}`;
                             html += `<button id="${btnId}" class="slot-btn btn-green" 
                                     data-remain="${remain}"
-                                    onclick="selectSlot(${s}, '${id}', '${safeName}', '${item.group}')">
+                                    onclick="selectSlot(${s}, '${id}')">
                                     <span class="d-block fw-bold">${remain}</span>
                                     <span style="font-size:0.6rem">ว่าง</span>
                                     </button>`;
@@ -315,16 +299,18 @@
             document.getElementById('footerBar').style.display = 'flex';
         }
 
-        // --- 3. ระบบเลือกวิชา ---
-        function selectSlot(slot, id, name, group) {
+        // --- 3. ระบบเลือกวิชา (ดึงชื่อจาก Map) ---
+        function selectSlot(slot, id) {
+            // ✅ ดึงข้อมูลจาก Map ด้วย ID
+            const activity = activityDataMap[id];
+            if (!activity) return; // กันพลาด
+
+            const name = activity.name;
+            const group = activity.group_type;
+
             const nonIstemLevels = ["2", "3", "5", "6"];
             if (nonIstemLevels.includes(studentInfo.classLevel) && group === "ISTEM") {
-                Swal.fire({
-                    icon: 'warning',
-                    title: 'เลือกไม่ได้',
-                    text: 'ระดับชั้นของคุณไม่สามารถเลือกกิจกรรม ISTEM ได้ครับ',
-                    confirmButtonColor: '#ffc107',
-                });
+                Swal.fire({icon: 'warning', title: 'เลือกไม่ได้', text: 'ระดับชั้นของคุณไม่สามารถเลือกกิจกรรม ISTEM ได้', confirmButtonColor: '#ffc107'});
                 return;
             }
 
@@ -350,18 +336,11 @@
         }
 
         function updateUI(slot, id, isSelected) {
-            let btnId = `btn_s${slot}_${id}`;
-            let btn = document.getElementById(btnId);
+            let btn = document.getElementById(`btn_s${slot}_${id}`);
             if (btn) {
                 let remain = btn.getAttribute('data-remain');
-                btn.className = 'slot-btn'; 
-                if (isSelected) {
-                    btn.classList.add('btn-selected');
-                    btn.innerHTML = `<i class="bi bi-check-lg"></i> เลือก`;
-                } else {
-                    btn.classList.add('btn-green');
-                    btn.innerHTML = `<span class="d-block fw-bold">${remain}</span><span style="font-size:0.6rem">ว่าง</span>`; 
-                }
+                btn.className = isSelected ? 'slot-btn btn-selected' : 'slot-btn btn-green';
+                btn.innerHTML = isSelected ? `<i class="bi bi-check-lg"></i> เลือก` : `<span class="d-block fw-bold">${remain}</span><span style="font-size:0.6rem">ว่าง</span>`;
             }
         }
 
@@ -379,7 +358,6 @@
 
             let statusDiv = document.getElementById('statusText');
             let btn = document.getElementById('btnConfirm');
-            
             let isTimeComplete = (count === 4);
             let isGroupValid = false;
             let missing = [];
@@ -405,77 +383,38 @@
 
             if (isTimeComplete && isGroupValid) {
                 statusDiv.innerHTML = `<span class="text-success"><i class="bi bi-check-circle-fill"></i> ครบถ้วนพร้อมส่ง!</span>`;
-                btn.disabled = false;
-                btn.classList.remove('btn-secondary');
-                btn.classList.add('btn-primary');
+                btn.disabled = false; btn.classList.replace('btn-secondary', 'btn-primary');
             } else {
                 statusDiv.innerHTML = "ขาด: " + missing.join(", ");
-                statusDiv.classList.add('text-danger');
-                btn.disabled = true;
-                btn.classList.remove('btn-primary');
-                btn.classList.add('btn-secondary');
+                statusDiv.className = 'fw-bold text-danger small';
+                btn.disabled = true; btn.classList.replace('btn-primary', 'btn-secondary');
             }
         }
 
-        // --- 5. บันทึกและแสดงผล ---
+        // --- 5. บันทึก ---
         function submitAll() {
             Swal.fire({
-                title: 'ยืนยันการลงทะเบียน?',
-                text: "ตรวจสอบข้อมูลให้ถูกต้องก่อนส่งนะครับ",
-                icon: 'question',
-                showCancelButton: true,
-                confirmButtonColor: '#0d47a1',
-                confirmButtonText: 'ยืนยัน',
-                cancelButtonText: 'ยกเลิก'
+                title: 'ยืนยันการลงทะเบียน?', text: "ตรวจสอบข้อมูลให้ถูกต้องก่อนส่งนะครับ", icon: 'question', showCancelButton: true, confirmButtonColor: '#0d47a1', confirmButtonText: 'ยืนยัน', cancelButtonText: 'ยกเลิก'
             }).then(async (result) => {
                 if (result.isConfirmed) {
-                    Swal.fire({
-                        title: 'กำลังบันทึกข้อมูล...',
-                        allowOutsideClick: false,
-                        didOpen: () => { Swal.showLoading(); }
-                    });
+                    Swal.fire({title: 'กำลังบันทึกข้อมูล...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); }});
 
                     const payload = {
-                        student_name: studentInfo.name,
-                        student_id: studentInfo.id,
-                        class_level: studentInfo.classLevel,
-                        room: studentInfo.room,
-                        number: studentInfo.number,
-                        slot1_id: selections[1].id,
-                        slot2_id: selections[2].id,
-                        slot3_id: selections[3].id,
-                        slot4_id: selections[4].id
+                        student_name: studentInfo.name, student_id: studentInfo.id, class_level: studentInfo.classLevel, room: studentInfo.room, number: studentInfo.number,
+                        slot1_id: selections[1].id, slot2_id: selections[2].id, slot3_id: selections[3].id, slot4_id: selections[4].id
                     };
 
                     try {
-                        const { error } = await client
-                            .from('registrations')
-                            .insert([payload]);
-
+                        const { error } = await client.from('registrations').insert([payload]);
                         if (error) throw error;
-
-                        Swal.fire({
-                            icon: 'success', 
-                            title: 'สำเร็จ!', 
-                            text: 'บันทึกข้อมูลเรียบร้อยแล้ว', 
-                            confirmButtonColor: '#198754'
-                        }).then(() => {
-                            showSuccessPage(payload);
-                        });
-
+                        Swal.fire({icon: 'success', title: 'สำเร็จ!', text: 'บันทึกข้อมูลเรียบร้อยแล้ว', confirmButtonColor: '#198754'}).then(() => showSuccessPage(payload));
                     } catch (err) {
-                        console.error(err);
-                        if (err.code === '23505') { 
-                             Swal.fire({icon: 'error', title: 'ผิดพลาด', text: 'รหัสนักเรียนนี้ลงทะเบียนไปแล้ว'});
-                        } else {
-                             Swal.fire({icon: 'error', title: 'เกิดข้อผิดพลาด', text: err.message});
-                        }
+                        Swal.fire({icon: 'error', title: 'เกิดข้อผิดพลาด', text: err.code === '23505' ? 'รหัสนักเรียนนี้ลงทะเบียนไปแล้ว' : err.message});
                     }
                 }
             });
         }
 
-        // --- 6. แสดงหน้าสรุป ---
         function showSuccessPage(data) {
             document.getElementById('selectionSection').style.display = 'none';
             document.getElementById('footerBar').style.display = 'none';
@@ -488,62 +427,26 @@
             document.getElementById('successNumber').innerText = data.number;
 
             let html = '';
-            const times = {
-                1: '09:00 - 10:30',
-                2: '10:30 - 12:00',
-                3: '13:00 - 14:30',
-                4: '14:30 - 16:00'
-            };
+            const times = { 1: '09:00 - 10:30', 2: '10:30 - 12:00', 3: '13:00 - 14:30', 4: '14:30 - 16:00' };
 
             for(let i=1; i<=4; i++) {
                 if(selections[i]) {
-                    html += `<tr>
-                        <td class="bg-light align-middle">
-                            <span class="badge bg-secondary mb-1">Slot ${i}</span><br>
-                            <span class="small">${times[i]}</span>
-                        </td>
-                        <td class="text-start align-middle">
-                            <div class="fw-bold text-primary">${selections[i].name}</div>
-                            <span class="badge bg-info text-dark" style="font-size:0.7rem">${selections[i].group}</span>
-                        </td>
-                    </tr>`;
+                    html += `<tr><td class="bg-light align-middle"><span class="badge bg-secondary mb-1">Slot ${i}</span><br><span class="small">${times[i]}</span></td><td class="text-start align-middle"><div class="fw-bold text-primary">${selections[i].name}</div><span class="badge bg-info text-dark" style="font-size:0.7rem">${selections[i].group}</span></td></tr>`;
                 }
             }
             document.getElementById('successTableBody').innerHTML = html;
             window.scrollTo(0, 0);
         }
 
-        // --- 7. ฟังก์ชันบันทึกภาพ ---
         function saveAsImage() {
-            Swal.fire({
-                title: 'กำลังสร้างรูปภาพ...',
-                text: 'กรุณารอสักครู่',
-                allowOutsideClick: false,
-                didOpen: () => { Swal.showLoading(); }
-            });
-
-            // เลือกเฉพาะส่วนที่จะแคป (id="captureArea")
+            Swal.fire({title: 'กำลังสร้างรูปภาพ...', text: 'กรุณารอสักครู่', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); }});
             const element = document.getElementById("captureArea");
-            
-            html2canvas(element, { 
-                scale: 2, // เพิ่มความชัด 2 เท่า
-                backgroundColor: "#ffffff" // พื้นหลังขาว
-            }).then(canvas => {
+            html2canvas(element, { scale: 2, backgroundColor: "#ffffff" }).then(canvas => {
                 Swal.close();
-                
-                // สร้างลิงก์ดาวน์โหลด
                 const link = document.createElement('a');
                 link.download = `Result_${studentInfo.id}.png`;
                 link.href = canvas.toDataURL("image/png");
                 link.click();
-
-                // แจ้งเตือนเผื่อดาวน์โหลดไม่ได้
-                Swal.fire({
-                    icon: 'success',
-                    title: 'บันทึกแล้ว',
-                    text: 'หากรูปไม่ขึ้น ให้ลองแคปหน้าจอแทนนะครับ',
-                    timer: 3000
-                });
             });
         }
     </script>
