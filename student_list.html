@@ -26,15 +26,15 @@
             box-shadow: 0 5px 20px rgba(0,0,0,0.05); margin-bottom: 30px;
         }
 
-        .table-head-dark { background-color: #212529; color: white; }
-        
         /* การตั้งค่าสำหรับการพิมพ์ (Print) */
         @media print {
             .no-print { display: none !important; }
             .main-card { box-shadow: none; border: none; padding: 0; }
             body { background-color: white; }
-            .table { font-size: 12px; width: 100%; }
+            .table { font-size: 14px; width: 100%; border: 1px solid #000; }
             .banner-container { padding: 10px; border-radius: 0; margin-bottom: 10px; -webkit-print-color-adjust: exact; }
+            /* ซ่อนลิงก์ URL เวลาพิมพ์ */
+            a[href]:after { content: none !important; }
         }
     </style>
 </head>
@@ -94,7 +94,7 @@
         <div id="resultSection" style="display:none;">
             <div class="d-flex justify-content-between align-items-center mb-2">
                 <h5 class="fw-bold text-primary m-0">
-                    ม.<span id="showClass"></span>/<span id="showRoom"></span> 
+                    <i class="bi bi-person-lines-fill"></i> รายชื่อ ม.<span id="showClass"></span>/<span id="showRoom"></span> 
                     <span class="text-muted small ms-2">(จำนวน <span id="countTotal">0</span> คน)</span>
                 </h5>
                 <button onclick="window.print()" class="btn btn-outline-dark btn-sm no-print">
@@ -102,17 +102,14 @@
                 </button>
             </div>
 
-            <div class="table-responsive bg-white rounded shadow-sm p-3">
+            <div class="bg-white rounded shadow-sm p-3 border">
                 <table class="table table-bordered table-striped table-hover mb-0">
-                    <thead class="table-dark text-center small">
+                    <thead class="table-dark text-center">
                         <tr>
-                            <th width="5%">เลขที่</th>
-                            <th width="15%">รหัสนักเรียน</th>
-                            <th width="20%">ชื่อ-นามสกุล</th>
-                            <th width="15%">Slot 1</th>
-                            <th width="15%">Slot 2</th>
-                            <th width="15%">Slot 3</th>
-                            <th width="15%">Slot 4</th>
+                            <th width="10%">เลขที่</th>
+                            <th width="20%">รหัสนักเรียน</th>
+                            <th width="50%">ชื่อ-นามสกุล</th>
+                            <th width="20%">สถานะ</th>
                         </tr>
                     </thead>
                     <tbody id="studentTableBody">
@@ -161,7 +158,7 @@
 
                 if (error) throw error;
 
-                // ⚠️ สำคัญ: เรียงลำดับตามเลขที่ (แปลงเป็นตัวเลขก่อนเรียง ไม่งั้น 10 จะมาก่อน 2)
+                // เรียงลำดับตามเลขที่ (น้อยไปมาก)
                 data.sort((a, b) => {
                     return Number(a.number) - Number(b.number);
                 });
@@ -186,7 +183,7 @@
             document.getElementById('resultSection').style.display = 'block';
 
             if (data.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="7" class="text-center text-muted py-4">ยังไม่มีใครลงทะเบียนในห้องนี้</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="4" class="text-center text-muted py-4">ยังไม่มีใครลงทะเบียนในห้องนี้</td></tr>`;
                 return;
             }
 
@@ -194,13 +191,12 @@
             data.forEach(student => {
                 html += `
                     <tr>
-                        <td class="text-center fw-bold">${student.number}</td>
-                        <td class="text-center">${student.student_id}</td>
-                        <td>${student.student_name}</td>
-                        <td class="small text-center">${student.slot1_activity || '-'}</td>
-                        <td class="small text-center">${student.slot2_activity || '-'}</td>
-                        <td class="small text-center">${student.slot3_activity || '-'}</td>
-                        <td class="small text-center">${student.slot4_activity || '-'}</td>
+                        <td class="text-center fw-bold align-middle">${student.number}</td>
+                        <td class="text-center align-middle">${student.student_id}</td>
+                        <td class="align-middle">${student.student_name}</td>
+                        <td class="text-center text-success fw-bold align-middle">
+                            <i class="bi bi-check-circle-fill"></i> ลงทะเบียนแล้ว
+                        </td>
                     </tr>
                 `;
             });
