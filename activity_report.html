@@ -136,7 +136,6 @@
                 if (err1) throw err1;
 
                 // 2. ดึงข้อมูลการเช็คชื่อทั้งหมด (เอามานับยอด)
-                // เลือกเฉพาะฟิลด์ที่จำเป็น เพื่อความเร็ว
                 const { data: attendance, error: err2 } = await client
                     .from('attendance')
                     .select('activity_id, slot, status');
@@ -153,11 +152,11 @@
 
         function processAndRender(activities, attendanceRecords) {
             // 1. เตรียม Object เก็บสถิติการเช็คชื่อ
-            // statsMap[activity_id][slot] = { checked: true/false, p:0, a:0, ... }
+            // Map Key จะเป็น String เสมอ เพื่อแก้ปัญหา Data Type Mismatch
             let statsMap = {};
 
             attendanceRecords.forEach(rec => {
-                let aid = rec.activity_id; // ID เป็น Text แล้ว
+                let aid = String(rec.activity_id); // 🔥 บังคับเป็น Text
                 let s = rec.slot;
                 
                 if (!statsMap[aid]) statsMap[aid] = {};
@@ -166,30 +165,30 @@
                 statsMap[aid][s].count++;
                 if (rec.status === 'present') statsMap[aid][s].p++;
                 else if (rec.status === 'absent') statsMap[aid][s].a++;
-                else if (rec.status === 'late') statsMap[aid][s].t++; // t for late/time
+                else if (rec.status === 'late') statsMap[aid][s].t++; 
                 else if (rec.status === 'leave') statsMap[aid][s].l++;
             });
 
-            // 2. จัดกลุ่มกิจกรรมเพื่อแสดงผล (Group by Name -> Slot 1-4)
+            // 2. จัดกลุ่มกิจกรรมเพื่อแสดงผล
             let grouped = {};
             activities.forEach(row => {
                 if (!grouped[row.name]) grouped[row.name] = { 
                     name: row.name, 
                     group: row.group_type, 
-                    id: row.id, // ใช้ ID นี้เป็น Key ในการดึง statsMap
+                    id: String(row.id), // 🔥 บังคับเป็น Text เพื่อให้ตรงกัน
                     slots: {} 
                 };
                 grouped[row.name].slots[row.slot] = row; 
             });
 
-            // 3. เรียงลำดับ (Group: ISTEM->Teacher->Parent, แล้วตามด้วย ID)
+            // 3. เรียงลำดับ (Group: ISTEM->Teacher->Parent, แล้วตามด้วยชื่อ)
             let sortedItems = Object.values(grouped).sort((a, b) => {
                 const groupOrder = { 'ISTEM': 1, 'Teacher': 2, 'Parent': 3 };
                 let orderA = groupOrder[a.group] || 99;
                 let orderB = groupOrder[b.group] || 99;
+                
                 if (orderA !== orderB) return orderA - orderB;
-                // ถ้า ID เป็น Text (T11_01) เทียบแบบ String, ถ้าเป็นตัวเลข เทียบแบบ Number
-                return String(a.id).localeCompare(String(b.id)); 
+                return a.name.localeCompare(b.name, 'th');
             });
 
             // 4. สร้าง HTML
@@ -207,7 +206,6 @@
                 html += `<td class="sticky-col p-2 align-middle border-end">
                             <div class="fw-bold text-dark" style="font-size: 0.9rem;">${item.name}</div>
                             <span class="badge ${groupBadge} mt-1" style="font-size: 0.65rem;">${item.group}</span>
-                            <div class="text-muted small" style="font-size: 0.6rem;">ID: ${item.id}</div>
                         </td>`;
                 
                 // Loop Slot 1-4
@@ -216,8 +214,9 @@
                     html += `<td class="status-cell">`;
 
                     if (slotActivity) {
-                        // ดึงข้อมูลการเช็คชื่อจาก StatsMap
-                        let stat = (statsMap[item.id] && statsMap[item.id][s]);
+                        // 🔥 ค้นหาด้วย ID ที่เป็น Text
+                        let lookupId = String(item.id);
+                        let stat = (statsMap[lookupId] && statsMap[lookupId][s]);
 
                         if (stat && stat.count > 0) {
                             // ✅ กรณี: มีการเช็คชื่อแล้ว (สีเขียว)
@@ -225,10 +224,10 @@
                             <div class="status-box box-checked">
                                 <div class="fw-bold text-success"><i class="bi bi-check-circle-fill"></i> เช็คแล้ว</div>
                                 <div class="mini-stat">
-                                    <span class="ms-item text-success" title="มา">P: ${stat.p}</span>
-                                    <span class="ms-item text-danger" title="ขาด">A: ${stat.a}</span>
-                                    <span class="ms-item text-warning" title="ลา">L: ${stat.l}</span>
-                                    <span class="ms-item text-info" title="สาย">T: ${stat.t}</span>
+                                    <span class="ms-item text-success" title="มา">P:${stat.p}</span>
+                                    <span class="ms-item text-danger" title="ขาด">A:${stat.a}</span>
+                                    <span class="ms-item text-warning" title="ลา">L:${stat.l}</span>
+                                    <span class="ms-item text-info" title="สาย">T:${stat.t}</span>
                                 </div>
                             </div>`;
                         } else {
