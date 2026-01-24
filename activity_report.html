@@ -1,123 +1,4 @@
-<!DOCTYPE html>
-<html lang="th">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ติดตามสถานะการเช็คชื่อ - PSUWIT</title>
-    
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
-    <style>
-        :root { --primary-color: #0d47a1; --secondary-color: #1976d2; --bg-color: #f0f4f8; }
-        body { font-family: 'Sarabun', sans-serif; background-color: var(--bg-color); min-height: 100vh; }
-        
-        .banner-container {
-            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
-            color: white; padding: 20px 0; border-radius: 0 0 25px 25px; margin-bottom: 20px;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
-        }
-        
-        .main-card {
-            background: white; border-radius: 15px; padding: 20px; 
-            box-shadow: 0 5px 20px rgba(0,0,0,0.05); margin-bottom: 30px;
-        }
-
-        /* Status Box Styles */
-        .status-cell { vertical-align: middle; padding: 4px !important; text-align: center; }
-        
-        .status-box {
-            border-radius: 8px; padding: 8px 4px; font-size: 0.8rem;
-            display: flex; flex-direction: column; align-items: center; justify-content: center;
-            min-height: 75px; 
-            border: 1px solid rgba(0,0,0,0.05);
-            transition: all 0.2s;
-        }
-
-        /* สีเขียว: เช็คแล้ว */
-        .box-checked { 
-            background-color: #d1e7dd; color: #0f5132; border-color: #badbcc;
-        }
-        /* สีแดง: ยังไม่เช็ค */
-        .box-unchecked { 
-            background-color: #f8d7da; color: #842029; border-color: #f5c2c7;
-        }
-        /* สีเทา: ไม่มีรอบ */
-        .box-none { 
-            background-color: #f8f9fa; color: #adb5bd; 
-        }
-
-        /* Stat Badges inside box */
-        .mini-stat {
-            font-size: 0.7rem; margin-top: 4px; display: flex; gap: 4px; justify-content: center; flex-wrap: wrap;
-        }
-        .ms-item { background: rgba(255,255,255,0.6); padding: 1px 4px; border-radius: 4px; font-weight: bold; }
-
-        .sticky-col { position: sticky; left: 0; background: white; z-index: 5; border-right: 2px solid #dee2e6; min-width: 200px; }
-
-        @media print {
-            .no-print { display: none; }
-        }
-    </style>
-</head>
-<body>
-
-    <div class="banner-container text-center no-print">
-        <div class="container">
-            <h4 class="fw-bold m-0"><i class="bi bi-calendar2-check-fill"></i> Dashboard ติดตามการเช็คชื่อ</h4>
-            <p class="m-0 text-white-50 small">ภาพรวมสถานะการบันทึกเวลาเรียน</p>
-        </div>
-    </div>
-
-    <div class="container-fluid px-4">
-        <div class="main-card">
-            
-            <div class="d-flex justify-content-between align-items-center mb-3 no-print">
-                <div>
-                    <a href="index.html" class="btn btn-outline-secondary rounded-pill btn-sm me-2"><i class="bi bi-house"></i> หน้าแรก</a>
-                    <a href="check_name.html" class="btn btn-outline-primary rounded-pill btn-sm"><i class="bi bi-clipboard-check"></i> ไปหน้าเช็คชื่อ</a>
-                </div>
-                <div class="d-flex gap-2 align-items-center">
-                    <div class="small text-muted me-2 d-none d-md-block">
-                        <span class="badge bg-success me-1"> </span> เช็คแล้ว
-                        <span class="badge bg-danger ms-2 me-1"> </span> ยังไม่เช็ค
-                    </div>
-                    <button onclick="fetchData()" class="btn btn-primary rounded-pill btn-sm fw-bold">
-                        <i class="bi bi-arrow-clockwise"></i> รีเฟรช
-                    </button>
-                </div>
-            </div>
-
-            <div id="loading" class="text-center py-5">
-                <div class="spinner-border text-primary" role="status"></div>
-                <p class="mt-2 text-muted">กำลังประมวลผลข้อมูล...</p>
-            </div>
-
-            <div class="table-responsive" id="tableArea" style="display:none;">
-                <table class="table table-bordered mb-0 align-middle">
-                    <thead class="table-dark text-center small">
-                        <tr>
-                            <th class="sticky-col py-3">รายชื่อกิจกรรม</th>
-                            <th width="18%">09:00<br><span class="badge bg-secondary">Slot 1</span></th>
-                            <th width="18%">10:30<br><span class="badge bg-secondary">Slot 2</span></th>
-                            <th width="18%">13:00<br><span class="badge bg-secondary">Slot 3</span></th>
-                            <th width="18%">14:30<br><span class="badge bg-secondary">Slot 4</span></th>
-                        </tr>
-                    </thead>
-                    <tbody id="tableBody">
-                        </tbody>
-                </table>
-            </div>
-            
-        </div>
-    </div>
-
-    <script>
-        // ==========================================
-        // ⚠️ Supabase Config
-        // ==========================================
+<script>
         const SUPABASE_URL = 'https://pqkaqsxmbewilzruogdw.supabase.co'; 
         const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBxa2Fxc3htYmV3aWx6cnVvZ2R3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg0ODgzMTksImV4cCI6MjA4NDA2NDMxOX0.TFyfNcFXcUUF29Iexmkjf6EaNIXAv8KuOFY_ydAY_z8'; 
         const client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
@@ -129,17 +10,32 @@
             document.getElementById('tableArea').style.display = 'none';
 
             try {
-                // 1. ดึงรายชื่อกิจกรรมทั้งหมด (เพื่อสร้างโครงตาราง)
+                // 1. ดึงรายชื่อกิจกรรม
                 const { data: activities, error: err1 } = await client
                     .from('activity_counts')
                     .select('*');
-                if (err1) throw err1;
+                
+                if (err1) {
+                    alert("Error ดึงกิจกรรม: " + err1.message);
+                    throw err1;
+                }
 
-                // 2. ดึงข้อมูลการเช็คชื่อทั้งหมด (เอามานับยอด)
+                // 2. ดึงข้อมูลการเช็คชื่อ
                 const { data: attendance, error: err2 } = await client
                     .from('attendance')
                     .select('activity_id, slot, status');
-                if (err2) throw err2;
+
+                if (err2) {
+                    alert("Error ดึงเช็คชื่อ: " + err2.message);
+                    throw err2;
+                }
+
+                // 🔥 เช็คดูว่าข้อมูลมาไหม
+                if (activities.length === 0) {
+                    alert("⚠️ ไม่พบข้อมูลกิจกรรมเลย (Activities = 0)\nกรุณารัน SQL GRANT SELECT ใน Supabase ก่อนครับ");
+                } else {
+                    // alert(`✅ โหลดข้อมูลสำเร็จ!\n- กิจกรรม: ${activities.length} รายการ\n- เช็คชื่อไปแล้ว: ${attendance.length} รายการ`);
+                }
 
                 processAndRender(activities, attendance);
 
@@ -151,12 +47,10 @@
         }
 
         function processAndRender(activities, attendanceRecords) {
-            // 1. เตรียม Object เก็บสถิติการเช็คชื่อ
-            // Map Key จะเป็น String เสมอ เพื่อแก้ปัญหา Data Type Mismatch
             let statsMap = {};
 
             attendanceRecords.forEach(rec => {
-                let aid = String(rec.activity_id); // 🔥 บังคับเป็น Text
+                let aid = String(rec.activity_id); 
                 let s = rec.slot;
                 
                 if (!statsMap[aid]) statsMap[aid] = {};
@@ -169,32 +63,27 @@
                 else if (rec.status === 'leave') statsMap[aid][s].l++;
             });
 
-            // 2. จัดกลุ่มกิจกรรมเพื่อแสดงผล
             let grouped = {};
             activities.forEach(row => {
                 if (!grouped[row.name]) grouped[row.name] = { 
                     name: row.name, 
                     group: row.group_type, 
-                    id: String(row.id), // 🔥 บังคับเป็น Text เพื่อให้ตรงกัน
+                    id: String(row.id), 
                     slots: {} 
                 };
                 grouped[row.name].slots[row.slot] = row; 
             });
 
-            // 3. เรียงลำดับ (Group: ISTEM->Teacher->Parent, แล้วตามด้วยชื่อ)
             let sortedItems = Object.values(grouped).sort((a, b) => {
                 const groupOrder = { 'ISTEM': 1, 'Teacher': 2, 'Parent': 3 };
                 let orderA = groupOrder[a.group] || 99;
                 let orderB = groupOrder[b.group] || 99;
-                
                 if (orderA !== orderB) return orderA - orderB;
                 return a.name.localeCompare(b.name, 'th');
             });
 
-            // 4. สร้าง HTML
             let html = '';
             for (let item of sortedItems) {
-                // Badge สีกลุ่ม
                 let groupBadge = 'bg-secondary';
                 if(item.group === 'ISTEM') groupBadge = 'bg-primary';
                 else if(item.group === 'Teacher') groupBadge = 'bg-info text-dark';
@@ -202,36 +91,35 @@
 
                 html += `<tr>`;
                 
-                // คอลัมน์ชื่อกิจกรรม
                 html += `<td class="sticky-col p-2 align-middle border-end">
                             <div class="fw-bold text-dark" style="font-size: 0.9rem;">${item.name}</div>
                             <span class="badge ${groupBadge} mt-1" style="font-size: 0.65rem;">${item.group}</span>
                         </td>`;
                 
-                // Loop Slot 1-4
                 for (let s = 1; s <= 4; s++) {
-                    let slotActivity = item.slots[s]; // ดูว่ากิจกรรมนี้มีเปิดใน Slot นี้ไหม
+                    let slotActivity = item.slots[s];
                     html += `<td class="status-cell">`;
 
                     if (slotActivity) {
-                        // 🔥 ค้นหาด้วย ID ที่เป็น Text
-                        let lookupId = String(item.id);
+                        let lookupId = String(item.id); // ใช้ ID (Text) ของกิจกรรมที่วนลูปอยู่
+                        
+                        // 🔥 Debug: ถ้าอยากรู้ว่า ID ตรงกันไหม ให้ Uncomment บรรทัดล่าง
+                        // console.log(`Checking ID: ${lookupId} Slot: ${s}`, statsMap[lookupId]);
+
                         let stat = (statsMap[lookupId] && statsMap[lookupId][s]);
 
                         if (stat && stat.count > 0) {
-                            // ✅ กรณี: มีการเช็คชื่อแล้ว (สีเขียว)
                             html += `
                             <div class="status-box box-checked">
                                 <div class="fw-bold text-success"><i class="bi bi-check-circle-fill"></i> เช็คแล้ว</div>
                                 <div class="mini-stat">
-                                    <span class="ms-item text-success" title="มา">P:${stat.p}</span>
-                                    <span class="ms-item text-danger" title="ขาด">A:${stat.a}</span>
-                                    <span class="ms-item text-warning" title="ลา">L:${stat.l}</span>
-                                    <span class="ms-item text-info" title="สาย">T:${stat.t}</span>
+                                    <span class="ms-item text-success">P:${stat.p}</span>
+                                    <span class="ms-item text-danger">A:${stat.a}</span>
+                                    <span class="ms-item text-warning">L:${stat.l}</span>
+                                    <span class="ms-item text-info">T:${stat.t}</span>
                                 </div>
                             </div>`;
                         } else {
-                            // ❌ กรณี: ยังไม่มีข้อมูลเช็คชื่อ (สีแดง)
                             html += `
                             <div class="status-box box-unchecked">
                                 <div class="fw-bold"><i class="bi bi-exclamation-circle"></i> ยังไม่เช็ค</div>
@@ -239,7 +127,6 @@
                             </div>`;
                         }
                     } else {
-                        // ⚪ กรณี: กิจกรรมนี้ไม่มีใน Slot นี้ (สีเทา)
                         html += `<div class="status-box box-none">-</div>`;
                     }
                     html += `</td>`;
@@ -252,5 +139,3 @@
             document.getElementById('tableArea').style.display = 'block';
         }
     </script>
-</body>
-</html>
