@@ -141,20 +141,35 @@
             // 1. จัดกลุ่มข้อมูล
             data.forEach(row => {
                 let name = row.name;
-                if (!grouped[name]) grouped[name] = { name: name, group: row.group_type, slots: {} };
+                // เก็บค่า ID ไว้ด้วยเพื่อใช้เรียงลำดับ (row.id)
+                if (!grouped[name]) grouped[name] = { 
+                    name: name, 
+                    group: row.group_type, 
+                    id: row.id, // เก็บ ID สำหรับเรียง
+                    slots: {} 
+                };
                 grouped[name].slots[row.slot] = row; 
             });
 
-            // 2. 🔥 แก้ไข: เรียงลำดับชื่อกิจกรรม (ก-ฮ, 1-10) อย่างถูกต้อง
-            const sortedKeys = Object.keys(grouped).sort((a, b) => {
-                return a.localeCompare(b, 'th', { numeric: true });
+            // 2. 🔥 แก้ไข: เรียงลำดับ Group ก่อน แล้วตามด้วย ID
+            let sortedItems = Object.values(grouped).sort((a, b) => {
+                // กำหนดลำดับกลุ่ม: ISTEM -> Teacher -> Parent
+                const groupOrder = { 'ISTEM': 1, 'Teacher': 2, 'Parent': 3 };
+                
+                let orderA = groupOrder[a.group] || 99;
+                let orderB = groupOrder[b.group] || 99;
+
+                if (orderA !== orderB) {
+                    return orderA - orderB; // เรียงตามกลุ่ม
+                } else {
+                    return a.id - b.id; // ถ้ากลุ่มเหมือนกัน ให้เรียงตาม ID (น้อยไปมาก)
+                }
             });
 
             let html = '';
             
-            // 3. วนลูปตามชื่อที่เรียงแล้ว
-            for (let key of sortedKeys) {
-                let item = grouped[key];
+            // 3. วนลูปตามข้อมูลที่เรียงแล้ว
+            for (let item of sortedItems) {
                 let groupBadge = 'bg-secondary';
                 if(item.group === 'ISTEM') groupBadge = 'bg-primary';
                 else if(item.group === 'Teacher') groupBadge = 'bg-info text-dark';
