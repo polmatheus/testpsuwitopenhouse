@@ -29,7 +29,7 @@
         .mini-stat { font-size: 0.7rem; margin-top: 4px; display: flex; gap: 3px; justify-content: center; flex-wrap: wrap; }
         .ms-item { background: rgba(255,255,255,0.7); padding: 1px 5px; border-radius: 4px; font-weight: bold; font-size: 0.65rem; }
         .sticky-col { position: sticky; left: 0; background: white; z-index: 5; border-right: 2px solid #dee2e6; min-width: 200px; max-width: 250px; }
-        .id-badge { font-family: monospace; font-size: 0.75rem; background: #eee; padding: 2px 6px; border-radius: 4px; color: #555; }
+        .id-badge { font-family: monospace; font-size: 0.85rem; background: #eee; padding: 2px 6px; border-radius: 4px; color: #333; font-weight: bold; }
         
         @media print { .no-print { display: none; } }
     </style>
@@ -38,8 +38,8 @@
 
     <div class="banner-container text-center no-print">
         <div class="container">
-            <h4 class="fw-bold m-0"><i class="bi bi-calendar2-check-fill"></i> Dashboard ติดตามการเช็คชื่อt</h4>
-            <p class="m-0 text-white-50 small">ตรวจสอบ: ชื่อกิจกรรม + ช่วงเวลา (Slot)</p>
+            <h4 class="fw-bold m-0"><i class="bi bi-calendar2-check-fill"></i> Dashboard ติดตามการเช็คชื่อ</h4>
+            <p class="m-0 text-white-50 small">เรียงตามกลุ่ม > รหัสกิจกรรม</p>
         </div>
     </div>
 
@@ -68,7 +68,7 @@
                 <table class="table table-bordered mb-0 align-middle">
                     <thead class="table-dark text-center small">
                         <tr>
-                            <th class="sticky-col py-3">กิจกรรม</th>
+                            <th class="sticky-col py-3">รหัส - ชื่อกิจกรรม</th>
                             <th width="18%">09:00 (Slot 1)</th>
                             <th width="18%">10:30 (Slot 2)</th>
                             <th width="18%">13:00 (Slot 3)</th>
@@ -93,25 +93,16 @@
             document.getElementById('tableArea').style.display = 'none';
 
             try {
-                // 1. ดึงข้อมูลการเช็คชื่อ
-                const { data: attendance, error: err1 } = await client
-                    .from('attendance')
-                    .select('*');
+                // 1. ดึงข้อมูล
+                const { data: attendance, error: err1 } = await client.from('attendance').select('*');
                 if (err1) throw err1;
 
-                // 2. ดึงข้อมูลกิจกรรม
-                const { data: activities, error: err2 } = await client
-                    .from('activity_counts')
-                    .select('*');
+                const { data: activities, error: err2 } = await client.from('activity_counts').select('*');
                 if (err2) throw err2;
 
-                console.log(`Loaded: Attendance=${attendance.length}, Activities=${activities.length}`);
-
-                // 🔥 สร้างคู่มือแปลรหัส: "ID" -> "ชื่อกิจกรรม"
-                // เพื่อเอาไปแปะในข้อมูลเช็คชื่อ
+                // 2. Map ID -> Name
                 let idToNameMap = {};
                 activities.forEach(act => {
-                    // แปลง ID เป็น string และตัดช่องว่าง
                     idToNameMap[String(act.id).trim()] = act.name; 
                 });
 
@@ -126,24 +117,15 @@
         }
 
         function renderDashboard(activities, attendanceRecords, idToNameMap) {
-            
-            // 1. สร้าง Key ผสม (Composite Key) = "ชื่อกิจกรรม_Slot"
-            // ตัวอย่าง Key: "Robot_1", "Cooking_3"
+            // 1. สร้าง Stats Map (ใช้ Key ผสม: Name_Slot)
             let statsMap = {};
-
             attendanceRecords.forEach(rec => {
                 let recId = String(rec.activity_id).trim();
                 let s = rec.slot;
-                
-                // หาชื่อกิจกรรมจาก ID ที่บันทึกไว้
                 let actName = idToNameMap[recId];
 
-                // ถ้าหาชื่อไม่เจอ (เผื่อ ID ผิดพลาด) ให้ข้าม หรือใช้ ID แทนไปก่อน
                 if (actName) {
-                    // 🔥 สร้าง Key ผสม: ชื่อ + Slot
-                    // นี่คือหัวใจสำคัญ: มันจะล็อกว่าข้อมูลนี้เป็นของกิจกรรมนี้ ในเวลานี้เท่านั้น
                     let compositeKey = `${actName}_${s}`; 
-
                     if (!statsMap[compositeKey]) statsMap[compositeKey] = { count: 0, p:0, a:0, l:0, t:0 };
 
                     statsMap[compositeKey].count++;
@@ -154,28 +136,35 @@
                 }
             });
 
-            // 2. จัดกลุ่มกิจกรรมเพื่อวาดตาราง (เหมือนเดิม)
+            // 2. จัดกลุ่มกิจกรรม
             let grouped = {};
             activities.forEach(row => {
                 if (!grouped[row.name]) grouped[row.name] = { 
                     name: row.name, 
                     group: row.group_type, 
-                    id: row.id, 
+                    id: row.id, // ID นี้จะถูกใช้ในการเรียง
                     slots: {} 
                 };
                 grouped[row.name].slots[row.slot] = row; 
             });
 
-            // 3. เรียงลำดับ
+            // ==========================================
+            // 🔥 ส่วนที่แก้ไข: การเรียงลำดับ (Sorting)
+            // ==========================================
             let sortedItems = Object.values(grouped).sort((a, b) => {
+                // 1. เรียงตามกลุ่มก่อน (ISTEM -> Teacher -> Parent)
                 const groupOrder = { 'ISTEM': 1, 'Teacher': 2, 'Parent': 3 };
                 let orderA = groupOrder[a.group] || 99;
                 let orderB = groupOrder[b.group] || 99;
+                
                 if (orderA !== orderB) return orderA - orderB;
-                return a.name.localeCompare(b.name, 'th');
+
+                // 2. ถ้ากลุ่มเดียวกัน -> เรียงตาม รหัส (ID)
+                // ใช้ numeric: true เพื่อให้เรียงเลขธรรมชาติ (C1, C2, C10)
+                return String(a.id).localeCompare(String(b.id), undefined, { numeric: true, sensitivity: 'base' });
             });
 
-            // 4. วาดตาราง
+            // 3. วาดตาราง
             let html = '';
             for (let item of sortedItems) {
                 let groupBadge = 'bg-secondary';
@@ -185,28 +174,25 @@
 
                 html += `<tr>`;
                 
-                // คอลัมน์ชื่อ
+                // คอลัมน์ชื่อ + รหัส
                 html += `<td class="sticky-col p-2 align-middle border-end">
-                            <div class="fw-bold text-dark" style="font-size: 0.9rem;">${item.name}</div>
-                            <div class="d-flex justify-content-between align-items-center mt-1">
-                                <span class="badge ${groupBadge}" style="font-size: 0.65rem;">${item.group}</span>
-                                <span class="id-badge">${item.id}</span>
+                            <div class="d-flex align-items-center mb-1">
+                                <span class="id-badge me-2">${item.id}</span>
+                                <span class="badge ${groupBadge}" style="font-size: 0.6rem;">${item.group}</span>
                             </div>
+                            <div class="fw-bold text-dark text-start" style="font-size: 0.9rem;">${item.name}</div>
                         </td>`;
                 
-                // วนลูป Slot 1-4
+                // Loop Slot 1-4
                 for (let s = 1; s <= 4; s++) {
                     let slotActivity = item.slots[s]; 
                     html += `<td class="status-cell">`;
 
                     if (slotActivity) {
-                        // 🔥 ค้นหาด้วย Key ผสม: "ชื่อกิจกรรม_Slot"
-                        // ต้องตรงทั้งชื่อ และ เวลา ถึงจะเจอข้อมูล
                         let lookupKey = `${item.name}_${s}`;
                         let stat = statsMap[lookupKey];
 
                         if (stat && stat.count > 0) {
-                            // ✅ สีเขียว
                             html += `
                             <div class="status-box box-checked">
                                 <div class="fw-bold text-success"><i class="bi bi-check-circle-fill"></i> เช็คแล้ว</div>
@@ -217,7 +203,6 @@
                                 </div>
                             </div>`;
                         } else {
-                            // ❌ สีแดง
                             html += `
                             <div class="status-box box-unchecked">
                                 <div class="fw-bold"><i class="bi bi-exclamation-circle"></i> ยังไม่เช็ค</div>
@@ -225,7 +210,6 @@
                             </div>`;
                         }
                     } else {
-                        // ⚪ สีเทา
                         html += `<div class="status-box box-none">-</div>`;
                     }
                     html += `</td>`;
