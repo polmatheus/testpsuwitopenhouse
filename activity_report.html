@@ -3,6 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    
     <title>ติดตามสถานะการเช็คชื่อ - PSUWIT</title>
     
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -25,6 +29,7 @@
             box-shadow: 0 5px 20px rgba(0,0,0,0.05); margin-bottom: 30px;
         }
 
+        /* Status Box Styles */
         .status-cell { vertical-align: middle; padding: 4px !important; text-align: center; }
         
         .status-box {
@@ -35,10 +40,20 @@
             transition: all 0.2s;
         }
 
-        .box-checked { background-color: #d1e7dd; color: #0f5132; border-color: #badbcc; }
-        .box-unchecked { background-color: #f8d7da; color: #842029; border-color: #f5c2c7; }
-        .box-none { background-color: #f8f9fa; color: #adb5bd; }
+        /* สีเขียว: เช็คแล้ว */
+        .box-checked { 
+            background-color: #d1e7dd; color: #0f5132; border-color: #badbcc;
+        }
+        /* สีแดง: ยังไม่เช็ค */
+        .box-unchecked { 
+            background-color: #f8d7da; color: #842029; border-color: #f5c2c7;
+        }
+        /* สีเทา: ไม่มีรอบ */
+        .box-none { 
+            background-color: #f8f9fa; color: #adb5bd; 
+        }
 
+        /* Stat Badges */
         .mini-stat {
             font-size: 0.7rem; margin-top: 4px; display: flex; gap: 3px; justify-content: center; flex-wrap: wrap;
         }
@@ -82,7 +97,7 @@
 
             <div id="loading" class="text-center py-5">
                 <div class="spinner-border text-primary" role="status"></div>
-                <p class="mt-2 text-muted">กำลังประมวลผลข้อมูล...</p>
+                <p class="mt-2 text-muted">กำลังดึงข้อมูลล่าสุด...</p>
             </div>
 
             <div class="table-responsive" id="tableArea" style="display:none;">
@@ -96,16 +111,27 @@
                             <th width="18%">14:30<br><span class="badge bg-secondary">Slot 4</span></th>
                         </tr>
                     </thead>
-                    <tbody id="tableBody"></tbody>
+                    <tbody id="tableBody">
+                        </tbody>
                 </table>
             </div>
+            
         </div>
     </div>
 
     <script>
+        // ==========================================
+        // ⚠️ Supabase Config
+        // ==========================================
         const SUPABASE_URL = 'https://pqkaqsxmbewilzruogdw.supabase.co'; 
         const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBxa2Fxc3htYmV3aWx6cnVvZ2R3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg0ODgzMTksImV4cCI6MjA4NDA2NDMxOX0.TFyfNcFXcUUF29Iexmkjf6EaNIXAv8KuOFY_ydAY_z8'; 
         const client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        // ฟังก์ชันทำความสะอาด ID (ตัดช่องว่าง, ทำเป็นตัวเล็ก) เพื่อให้จับคู่เจอกัน 100%
+        const cleanID = (id) => {
+            if (id === null || id === undefined) return "";
+            return String(id).trim().toLowerCase();
+        };
 
         document.addEventListener('DOMContentLoaded', fetchData);
 
@@ -114,15 +140,22 @@
             document.getElementById('tableArea').style.display = 'none';
 
             try {
-                const { data: activities, error: err1 } = await client.from('activity_counts').select('*');
-                if (err1) {
-                    if(err1.code === '42501' || err1.code === 'PGRST301') alert("⚠️ กรุณารัน SQL: GRANT SELECT ON activity_counts TO anon;");
-                    throw err1;
-                }
+                // 1. ดึงรายชื่อกิจกรรม (เรียงตาม View)
+                const { data: activities, error: err1 } = await client
+                    .from('activity_counts')
+                    .select('*');
+                
+                if (err1) throw err1;
 
-                const { data: attendance, error: err2 } = await client.from('attendance').select('activity_id, slot, status');
+                // 2. ดึงข้อมูลการเช็คชื่อ
+                const { data: attendance, error: err2 } = await client
+                    .from('attendance')
+                    .select('activity_id, slot, status');
+
                 if (err2) throw err2;
 
+                console.log(`โหลดเสร็จ: กิจกรรม ${activities.length} / เช็คชื่อ ${attendance.length}`);
+                
                 processAndRender(activities, attendance);
 
             } catch (err) {
@@ -134,11 +167,13 @@
         }
 
         function processAndRender(activities, attendanceRecords) {
+            // 1. สร้าง Map เก็บสถิติ (ใช้ ID แบบ Clean แล้วเป็น Key)
             let statsMap = {};
 
             attendanceRecords.forEach(rec => {
-                let aid = String(rec.activity_id); 
-                let s = rec.slot;
+                // 🔥 สำคัญ: Clean ID ก่อนเก็บ
+                let aid = cleanID(rec.activity_id);
+                let s = rec.slot; // slot เป็น INT ปกติ
                 
                 if (!statsMap[aid]) statsMap[aid] = {};
                 if (!statsMap[aid][s]) statsMap[aid][s] = { count: 0, p:0, a:0, l:0, t:0 };
@@ -150,33 +185,32 @@
                 else if (rec.status === 'leave') statsMap[aid][s].l++;
             });
 
+            // 2. จัดกลุ่มกิจกรรม
             let grouped = {};
             activities.forEach(row => {
                 if (!grouped[row.name]) grouped[row.name] = { 
                     name: row.name, 
                     group: row.group_type, 
-                    id: String(row.id), 
+                    id: row.id, // เก็บ ID เดิมไว้แสดงผล
+                    clean_id: cleanID(row.id), // เก็บ ID แบบ Clean ไว้ค้นหา
                     slots: {} 
                 };
                 grouped[row.name].slots[row.slot] = row; 
             });
 
-            // ============================================================
-            // 🔥 ส่วนที่แก้ไข: การเรียงลำดับ (Sorting)
-            // ============================================================
+            // 3. เรียงลำดับ (ตามกลุ่ม -> ตาม ID)
             let sortedItems = Object.values(grouped).sort((a, b) => {
-                // 1. เรียงตามกลุ่มก่อน (ISTEM -> Teacher -> Parent)
                 const groupOrder = { 'ISTEM': 1, 'Teacher': 2, 'Parent': 3 };
                 let orderA = groupOrder[a.group] || 99;
                 let orderB = groupOrder[b.group] || 99;
                 
                 if (orderA !== orderB) return orderA - orderB;
-
-                // 2. ถ้ากลุ่มเหมือนกัน -> เรียงตาม ID (String Compare)
-                // ใช้ localeCompare พร้อม numeric: true เพื่อให้เรียงเลขสวยๆ (เช่น 1, 2, 10 ไม่ใช่ 1, 10, 2)
+                
+                // เรียงตาม ID แบบธรรมชาติ (1, 2, 10)
                 return String(a.id).localeCompare(String(b.id), undefined, { numeric: true, sensitivity: 'base' });
             });
 
+            // 4. สร้าง HTML
             let html = '';
             for (let item of sortedItems) {
                 let groupBadge = 'bg-secondary';
@@ -186,6 +220,7 @@
 
                 html += `<tr>`;
                 
+                // ชื่อและรหัส
                 html += `<td class="sticky-col p-2 align-middle border-end">
                             <div class="fw-bold text-dark" style="font-size: 0.9rem;">${item.name}</div>
                             <div class="d-flex justify-content-between align-items-center mt-1">
@@ -194,15 +229,18 @@
                             </div>
                         </td>`;
                 
+                // Loop Slot 1-4
                 for (let s = 1; s <= 4; s++) {
-                    let slotActivity = item.slots[s];
+                    let slotActivity = item.slots[s]; 
                     html += `<td class="status-cell">`;
 
                     if (slotActivity) {
-                        let lookupId = String(item.id);
+                        // 🔥 ค้นหาด้วย ID ที่ Clean แล้ว
+                        let lookupId = item.clean_id;
                         let stat = (statsMap[lookupId] && statsMap[lookupId][s]);
 
                         if (stat && stat.count > 0) {
+                            // สีเขียว (เช็คแล้ว)
                             html += `
                             <div class="status-box box-checked">
                                 <div class="fw-bold text-success"><i class="bi bi-check-circle-fill"></i> เช็คแล้ว</div>
@@ -214,6 +252,7 @@
                                 </div>
                             </div>`;
                         } else {
+                            // สีแดง (ยังไม่เช็ค)
                             html += `
                             <div class="status-box box-unchecked">
                                 <div class="fw-bold"><i class="bi bi-exclamation-circle"></i> ยังไม่เช็ค</div>
@@ -221,6 +260,7 @@
                             </div>`;
                         }
                     } else {
+                        // สีเทา (ไม่มีรอบ)
                         html += `<div class="status-box box-none">-</div>`;
                     }
                     html += `</td>`;
