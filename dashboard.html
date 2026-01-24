@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ตรวจสอบจำนวนลงทะเบียนใน workshop มอ.ว วิชาการครั้งที่ 3</title>
+    <title>ตรวจสอบที่นั่งว่าง - PSUWIT</title>
     
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;600;700&display=swap" rel="stylesheet">
@@ -52,7 +52,7 @@
 
     <div class="banner-container text-center">
         <div class="container">
-            <h4 class="fw-bold m-0"><i class="bi bi-bar-chart-line-fill"></i> ตรวจสอบจำนวนลงทะเบียนใน workshop มอ.ว วิชาการครั้งที่ 3</h4>
+            <h4 class="fw-bold m-0"><i class="bi bi-bar-chart-line-fill"></i> Dashboard ที่นั่งว่าง</h4>
             <p class="m-0 text-white-50 small">อัปเดตข้อมูล Real-time</p>
             <div class="mt-2 badge bg-white text-primary rounded-pill px-3 py-2 shadow-sm">
                 ยอดลงทะเบียนรวมทั้งระบบ: <span id="grandTotal" class="fw-bold fs-6">...</span> ที่นั่ง
@@ -136,25 +136,31 @@
 
         function renderDashboard(data) {
             let grouped = {};
-            let systemTotal = 0; // ตัวแปรเก็บยอดรวมทั้งระบบ
+            let systemTotal = 0; 
             
-            // จัดกลุ่มข้อมูล
+            // 1. จัดกลุ่มข้อมูล
             data.forEach(row => {
                 let name = row.name;
                 if (!grouped[name]) grouped[name] = { name: name, group: row.group_type, slots: {} };
                 grouped[name].slots[row.slot] = row; 
             });
 
+            // 2. 🔥 แก้ไข: เรียงลำดับชื่อกิจกรรม (ก-ฮ, 1-10) อย่างถูกต้อง
+            const sortedKeys = Object.keys(grouped).sort((a, b) => {
+                return a.localeCompare(b, 'th', { numeric: true });
+            });
+
             let html = '';
             
-            for (let key in grouped) {
+            // 3. วนลูปตามชื่อที่เรียงแล้ว
+            for (let key of sortedKeys) {
                 let item = grouped[key];
                 let groupBadge = 'bg-secondary';
                 if(item.group === 'ISTEM') groupBadge = 'bg-primary';
                 else if(item.group === 'Teacher') groupBadge = 'bg-info text-dark';
                 else if(item.group === 'Parent') groupBadge = 'bg-warning text-dark';
 
-                let rowTotal = 0; // ตัวแปรเก็บยอดรวมต่อกิจกรรม
+                let rowTotal = 0; 
 
                 html += `<tr>`;
                 
@@ -174,7 +180,6 @@
                         let max = slotData.max_seats;
                         let isFull = current >= max;
                         
-                        // บวกยอด
                         rowTotal += current;
                         systemTotal += current;
 
@@ -191,7 +196,7 @@
                     html += `</td>`;
                 }
 
-                // เพิ่มคอลัมน์รวมยอดท้ายตาราง
+                // คอลัมน์รวมยอด
                 html += `<td class="status-cell total-col align-middle">
                             <div style="font-size: 1.1rem;">${rowTotal}</div>
                             <small class="text-muted" style="font-size: 0.65rem;">คน</small>
@@ -201,7 +206,7 @@
             }
 
             document.getElementById('tableBody').innerHTML = html;
-            document.getElementById('grandTotal').innerText = systemTotal.toLocaleString(); // แสดงยอดรวมด้านบน
+            document.getElementById('grandTotal').innerText = systemTotal.toLocaleString(); 
 
             document.getElementById('loading').style.display = 'none';
             document.getElementById('tableArea').style.display = 'block';
