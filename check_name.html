@@ -38,7 +38,7 @@
 
     <div class="banner-container text-center">
         <div class="container">
-            <h4 class="fw-bold m-0"><i class="bi bi-clipboard-check-fill"></i> ระบบเช็คชื่อ1</h4>
+            <h4 class="fw-bold m-0"><i class="bi bi-clipboard-check-fill"></i> ระบบเช็คชื่อ</h4>
         </div>
     </div>
 
@@ -104,6 +104,9 @@
     </div>
 
     <script>
+        // ==========================================
+        // ⚠️ Supabase Config
+        // ==========================================
         const SUPABASE_URL = 'https://pqkaqsxmbewilzruogdw.supabase.co'; 
         const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBxa2Fxc3htYmV3aWx6cnVvZ2R3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg0ODgzMTksImV4cCI6MjA4NDA2NDMxOX0.TFyfNcFXcUUF29Iexmkjf6EaNIXAv8KuOFY_ydAY_z8'; 
         const client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
@@ -115,6 +118,7 @@
             initActivities();
         });
 
+        // 1. โหลดกิจกรรมทั้งหมด
         async function initActivities() {
             try {
                 const { data, error } = await client.from('activity_counts').select('*');
@@ -127,6 +131,7 @@
             }
         }
 
+        // 2. กรองกิจกรรม
         function filterActivities() {
             const slot = document.getElementById('slotSelect').value;
             const type = document.getElementById('typeSelect').value;
@@ -148,6 +153,7 @@
             actSelect.innerHTML = html;
         }
 
+        // 3. โหลดรายชื่อนักเรียน
         async function loadStudents() {
             const slot = document.getElementById('slotSelect').value;
             const activityId = document.getElementById('activitySelect').value;
@@ -162,10 +168,9 @@
             document.getElementById('saveBar').style.display = 'none';
 
             try {
-                // ชื่อคอลัมน์ที่จะค้นหา
+                // ค้นหารายชื่อจาก slotX_id
                 const colName = 'slot' + slot + '_id'; 
                 
-                // 1. ดึงรายชื่อนักเรียน
                 const { data: students, error: err1 } = await client
                     .from('registrations')
                     .select('*')
@@ -173,7 +178,7 @@
 
                 if (err1) throw err1;
 
-                // 2. ดึงสถานะเช็คชื่อเก่า (activity_id เป็น TEXT แล้ว)
+                // ดึงข้อมูลการเช็คชื่อเก่า
                 const { data: attendance, error: err2 } = await client
                     .from('attendance')
                     .select('*')
@@ -216,7 +221,7 @@
             let html = '';
             students.forEach(std => {
                 let status = attendMap[std.student_id] || '';
-                if (status === '') status = 'present'; 
+                if (status === '') status = 'present'; // Default
 
                 const isP = status === 'present' ? 'checked' : '';
                 const isL = status === 'leave' ? 'checked' : '';
@@ -265,12 +270,14 @@
                     if (r.checked) {
                         upsertData.push({
                             student_id: std.student_id,
-                            
-                            // 🔥 จุดสำคัญ: ไม่ใช้ parseInt แล้ว เพราะ ID เป็นตัวหนังสือ
-                            activity_id: activityId, 
-                            
+                            activity_id: activityId,
                             slot: parseInt(slot),
-                            status: r.value
+                            status: r.value,
+                            
+                            // 🔥 บันทึกข้อมูล ชั้น/ห้อง/เลขที่ เพิ่มเข้าไปด้วย
+                            class_level: std.class_level,
+                            room: std.room,
+                            number: std.number
                         });
                         break;
                     }
@@ -287,7 +294,7 @@
                 Swal.fire({
                     icon: 'success',
                     title: 'บันทึกสำเร็จ',
-                    text: `บันทึกข้อมูลเรียบร้อย ${upsertData.length} คน`,
+                    text: `บันทึกข้อมูลพร้อม ชั้น/ห้อง/เลขที่ จำนวน ${upsertData.length} คน`,
                     timer: 1500
                 });
 
