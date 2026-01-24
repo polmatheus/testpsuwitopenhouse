@@ -3,452 +3,125 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ระบบลงทะเบียนกิจกรรม Workshop มอ.ว วิชาการ ครั้งที่ 3</title>
+    <title>ระบบสำหรับนักเรียน - PSUWIT</title>
     
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
 
     <style>
-        :root { --primary-color: #0d47a1; --secondary-color: #1976d2; --bg-color: #f0f4f8; }
-        body { font-family: 'Sarabun', sans-serif; background-color: var(--bg-color); min-height: 100vh; padding-bottom: 80px; }
+        :root { --primary-color: #0d47a1; --bg-color: #f0f4f8; }
+        body { font-family: 'Sarabun', sans-serif; background-color: var(--bg-color); min-height: 100vh; }
         
         .banner-container {
-            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
-            color: white; padding: 20px 0; border-radius: 0 0 25px 25px; margin-bottom: 30px;
+            background: linear-gradient(135deg, #1e88e5, #42a5f5); /* สีฟ้าสดใสกว่าของครู */
+            color: white; padding: 40px 0 30px; border-radius: 0 0 30px 30px; margin-bottom: 40px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
         }
-        .logo-circle { width: 90px; height: 90px; transition: transform 0.3s; }
-        .logo-circle:hover { transform: scale(1.1); }
 
-        .main-card { background: white; border-radius: 15px; padding: 30px; max-width: 600px; margin: 0 auto; box-shadow: 0 10px 30px rgba(0,0,0,0.08); }
-        .btn-main { background: linear-gradient(to right, var(--primary-color), var(--secondary-color)); color: white; border-radius: 50px; width: 100%; padding: 12px; font-weight: bold; border:none; }
-        .btn-main:hover { transform: translateY(-2px); box-shadow: 0 6px 15px rgba(0,0,0,0.2); color:white;}
+        .menu-card {
+            border: none; border-radius: 20px; transition: all 0.3s ease;
+            background: white; overflow: hidden; height: 100%;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.05);
+            text-decoration: none; display: block; color: inherit;
+            position: relative;
+            border-bottom: 5px solid transparent;
+        }
         
-        .table-container { background: white; border-radius: 15px; padding: 15px; overflow-x: auto; }
-        .sticky-col { position: sticky; left: 0; background: white; z-index: 5; border-right: 2px solid #dee2e6; min-width: 140px; }
+        .menu-card:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 15px 30px rgba(0,0,0,0.15);
+            color: inherit;
+        }
+
+        .icon-box {
+            width: 80px; height: 80px; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 2.5rem; margin-bottom: 20px;
+            transition: 0.3s;
+        }
+
+        /* ธีมปุ่มลงทะเบียน (สีส้ม/เหลือง กระตุ้นให้กด) */
+        .theme-regist .icon-box { background-color: #fff3cd; color: #ffc107; }
+        .theme-regist:hover { border-bottom-color: #ffc107; }
+        .theme-regist:hover .icon-box { background-color: #ffc107; color: white; transform: scale(1.1); }
+
+        /* ธีมปุ่มตรวจสอบ (สีเขียว/ฟ้า ให้ความรู้สึกยืนยัน) */
+        .theme-check .icon-box { background-color: #e8f5e9; color: #198754; }
+        .theme-check:hover { border-bottom-color: #198754; }
+        .theme-check:hover .icon-box { background-color: #198754; color: white; transform: scale(1.1); }
+
+        .card-title { font-weight: 700; color: #333; margin-bottom: 10px; font-size: 1.25rem; }
+        .card-desc { font-size: 0.9rem; color: #6c757d; line-height: 1.6; }
         
-        .slot-btn { width: 100%; padding: 4px; font-size: 0.75rem; border-radius: 6px; border: 1px solid #dee2e6; margin-bottom: 4px; min-height: 40px; }
-        .btn-green { background-color: #f8fff9; color: #198754; border-color: #198754; }
-        .btn-selected { background-color: var(--primary-color) !important; color: white !important; transform: scale(1.05); }
-        .btn-full { background-color: #fdeaea; color: #dc3545; border-color: #f5c2c7; cursor: not-allowed; opacity: 0.7; }
-        
-        .footer-bar { position: fixed; bottom: 0; left: 0; right: 0; background: white; padding: 15px; display: none; z-index: 1000; box-shadow: 0 -5px 20px rgba(0,0,0,0.1); }
-        .badge-istem { background-color: #6f42c1; color: white; }
-        .badge-teacher { background-color: #0dcaf0; color: black; }
-        .badge-parent { background-color: #ffc107; color: black; }
-        
-        .receipt-card { border-top: 5px solid #198754; }
-        
-        @media (max-width: 576px) { .header-content { flex-direction: column; } }
+        .btn-go {
+            margin-top: 20px;
+            padding: 8px 20px; border-radius: 50px;
+            background: #f8f9fa; color: #aaa; font-weight: bold; font-size: 0.85rem;
+            transition: 0.2s; display: inline-block;
+        }
+        .menu-card:hover .btn-go { background: #333; color: white; }
+
     </style>
 </head>
 <body>
 
-    <div class="banner-container">
-        <div class="container d-flex justify-content-center align-items-center gap-3 flex-wrap header-content">
-            <div class="text-center">
-                <img src="https://img2.pic.in.th/pic/PSUWIT_Circle.png" class="logo-circle">
-                <p class="mt-2 text-white-50 m-0">ระบบลงทะเบียนกิจกรรม workshop</p>
-                <p class="mt-2 text-white-50 m-0">มอ.ว วิชาการ ครั้งที่ 3 ปีการศึกษา 2568</p>
-            </div>
+    <div class="banner-container text-center">
+        <div class="container">
+            <h1 class="fw-bold m-0"><i class="bi bi-backpack-fill"></i> Student Portal</h1>
+            <p class="m-0 text-white-50 mt-2 fs-5">ระบบบริการนักเรียน PSUWIT Open House</p>
         </div>
     </div>
 
-    <div class="container">
-        <div id="loginSection" class="main-card">
-            <h4 class="text-center mb-4 fw-bold" style="color: var(--primary-color);">
-                <i class="bi bi-person-circle"></i> ข้อมูลนักเรียน
-            </h4>
-            <form onsubmit="checkAndGo(event)">
-                <div class="mb-3">
-                    <label>ชื่อ-นามสกุล</label>
-                    <input type="text" id="inputName" class="form-control" required placeholder="เช่น นายรักเรียน เพียรศึกษา">
-                </div>
-                <div class="mb-3">
-                    <label>รหัสนักเรียน</label>
-                    <input type="text" id="inputId" class="form-control" required placeholder="กรอกเฉพาะตัวเลข">
-                </div>
-                <div class="row g-2 mb-4">
-                    <div class="col-4">
-                        <label>ชั้น</label>
-                        <select id="inputClass" class="form-select" required>
-                            <option value="">เลือก</option>
-                            <option value="1">ม.1</option>
-                            <option value="2">ม.2</option>
-                            <option value="3">ม.3</option>
-                            <option value="4">ม.4</option>
-                            <option value="5">ม.5</option>
-                            <option value="6">ม.6</option>
-                        </select>
+    <div class="container pb-5">
+        
+        <div class="row g-4 justify-content-center">
+
+            <div class="col-md-5 col-sm-12">
+                <a href="regist.html" class="menu-card theme-regist p-5 text-center">
+                    <div class="d-flex justify-content-center">
+                        <div class="icon-box">
+                            <i class="bi bi-pencil-square"></i>
+                        </div>
                     </div>
-                    <div class="col-4">
-                        <label>ห้อง</label>
-                        <select id="inputRoom" class="form-select" required>
-                            <option value="">เลือก</option>
-                            <option value="1">1</option>
-                            <option value="2">2</option>
-                            <option value="3">3</option>
-                            <option value="4">4</option>
-                            <option value="5">5</option>
-                            <option value="6">6</option>
-                            <option value="7">7</option>
-                            <option value="8">8</option>
-                            <option value="9">9</option>
-                        </select>
+                    <h4 class="card-title">ลงทะเบียนกิจกรรม</h4>
+                    <p class="card-desc">
+                        เลือกฐานกิจกรรมที่สนใจเข้าร่วม<br>
+                        จำนวน 4 ฐาน (ตามช่วงเวลา)
+                    </p>
+                    <div class="btn-go">
+                        คลิกเพื่อลงทะเบียน <i class="bi bi-arrow-right ms-1"></i>
                     </div>
-                    <div class="col-4">
-                        <label>เลขที่</label>
-                        <input type="number" id="inputNumber" class="form-control" required>
+                </a>
+            </div>
+
+            <div class="col-md-5 col-sm-12">
+                <a href="student_check.html" class="menu-card theme-check p-5 text-center">
+                    <div class="d-flex justify-content-center">
+                        <div class="icon-box">
+                            <i class="bi bi-search"></i>
+                        </div>
                     </div>
-                </div>
-                <button type="submit" id="btnEnter" class="btn-main">เข้าสู่ระบบลงทะเบียน</button>
-            </form>
+                    <h4 class="card-title">ตรวจสอบผลการลงทะเบียน</h4>
+                    <p class="card-desc">
+                        ค้นหารหัสนักเรียนเพื่อดูตารางกิจกรรม<br>
+                        และพิมพ์บัตรเข้าร่วมงาน
+                    </p>
+                    <div class="btn-go">
+                        คลิกเพื่อตรวจสอบ <i class="bi bi-arrow-right ms-1"></i>
+                    </div>
+                </a>
+            </div>
+
         </div>
 
-        <div id="selectionSection" style="display:none;">
-            <div class="d-flex justify-content-between align-items-center mb-3">
-                <h5 class="text-primary fw-bold m-0">ระบบลงทะเบียนกิจกรรม workshop</h5>
-                <span class="badge bg-white text-dark border p-2"><span id="displayName"></span> (ม.<span id="displayClass"></span>)</span>
-            </div>
-            <div class="alert alert-primary py-2 mb-3 small"><i class="bi bi-info-circle-fill"></i> เงื่อนไข: <strong id="userConditionText">...</strong></div>
-
-            <div id="loading" class="text-center py-5"><div class="spinner-border text-primary"></div><p class="mt-2 text-muted">กำลังโหลด...</p></div>
-
-            <div class="table-container" id="tableArea" style="display:none;">
-                <table class="table table-bordered mb-0 w-100">
-                    <thead class="table-dark text-center small">
-                        <tr><th class="sticky-col">กิจกรรม</th><th width="19%">09:00 - 10:20</th><th width="19%">10:30 - 11:50</th><th width="19%">13:00 - 14:20</th><th width="19%">14:30 - 15:50 </th></tr>
-                    </thead>
-                    <tbody id="activityTableBody"></tbody>
-                </table>
-            </div>
-        </div>
-
-        <div id="successSection" class="main-card receipt-card text-center" style="display:none;">
-            
-            <div id="captureArea" class="bg-white p-2">
-                <i class="bi bi-check-circle-fill text-success" style="font-size: 4rem;"></i>
-                <h4 class="fw-bold mt-2 text-success">ลงทะเบียนสำเร็จ!</h4>
-                <p class="text-muted small">บันทึกข้อมูลเข้าสู่ระบบเรียบร้อยแล้ว</p>
-                
-                <div class="card bg-light border-0 p-3 mb-3 text-start shadow-sm">
-                    <div class="row">
-                        <div class="col-6"><strong>ชื่อ:</strong> <span id="successName"></span></div>
-                        <div class="col-6"><strong>รหัส:</strong> <span id="successId"></span></div>
-                        <div class="col-12 mt-1"><strong>ชั้น:</strong> ม.<span id="successClass"></span>/ <span id="successRoom"></span> เลขที่ <span id="successNumber"></span></div>
-                    </div>
-                </div>
-
-                <h6 class="fw-bold text-start mb-2"><i class="bi bi-calendar-check"></i> ตารางกิจกรรมที่เลือก</h6>
-                <div class="table-responsive">
-                    <table class="table table-bordered table-sm">
-                        <thead class="table-primary">
-                            <tr>
-                                <th width="35%">เวลา</th>
-                                <th>กิจกรรม</th>
-                            </tr>
-                        </thead>
-                        <tbody id="successTableBody"></tbody>
-                    </table>
-                </div>
-            </div>
-
-            <div class="d-grid gap-2 mt-4">
-                <button class="btn btn-success rounded-pill fw-bold" onclick="saveAsImage()">
-                    <i class="bi bi-download"></i> บันทึกผลเป็นรูปภาพ
-                </button>
-                <button class="btn btn-outline-secondary rounded-pill" onclick="location.reload()">
-                    <i class="bi bi-house-door-fill"></i> กลับหน้าแรก
-                </button>
-            </div>
+        <div class="text-center mt-5">
+            <a href="index.html" class="btn btn-outline-secondary rounded-pill px-4 text-decoration-none">
+                <i class="bi bi-house"></i> กลับหน้าหลัก (Home)
+            </a>
         </div>
 
     </div>
 
-    <div class="footer-bar justify-content-between align-items-center" id="footerBar">
-        <div id="statusText" class="fw-bold text-danger small">ยังเลือกไม่ครบ...</div>
-        <button id="btnConfirm" disabled onclick="submitAll()" class="btn btn-secondary rounded-pill px-4 fw-bold">ยืนยันการลงทะเบียน</button>
-    </div>
-
-    <script>
-        const SUPABASE_URL = 'https://pqkaqsxmbewilzruogdw.supabase.co'; 
-        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBxa2Fxc3htYmV3aWx6cnVvZ2R3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg0ODgzMTksImV4cCI6MjA4NDA2NDMxOX0.TFyfNcFXcUUF29Iexmkjf6EaNIXAv8KuOFY_ydAY_z8'; 
-
-        const client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-
-        let selections = { 1: null, 2: null, 3: null, 4: null }; 
-        let studentInfo = {}; 
-        let activityDataMap = {}; // ✅ เก็บข้อมูลกิจกรรมไว้ที่นี่ แทนการส่งผ่าน HTML
-
-        // --- 1. เช็คสิทธิ์ ---
-        async function checkAndGo(e) {
-            e.preventDefault();
-            studentInfo = {
-                name: document.getElementById('inputName').value,
-                id: document.getElementById('inputId').value.trim(),
-                classLevel: document.getElementById('inputClass').value,
-                room: document.getElementById('inputRoom').value,
-                number: document.getElementById('inputNumber').value
-            };
-
-            let btn = document.getElementById('btnEnter');
-            let originalText = btn.innerHTML;
-            btn.disabled = true;
-            btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> กำลังตรวจสอบ...';
-
-            try {
-                const { data, error } = await client
-                    .from('registrations')
-                    .select('student_id')
-                    .eq('student_id', studentInfo.id)
-                    .maybeSingle();
-
-                if (error) throw error;
-
-                if (data) {
-                    Swal.fire({icon: 'warning', title: 'ลงทะเบียนแล้ว', text: 'รหัสนักเรียนนี้ลงทะเบียนเรียบร้อยแล้ว', confirmButtonColor: '#0d47a1'});
-                    btn.disabled = false; btn.innerHTML = originalText;
-                } else {
-                    goToSelection();
-                }
-            } catch (err) {
-                console.error(err);
-                Swal.fire('Error', 'ไม่สามารถเชื่อมต่อฐานข้อมูลได้', 'error');
-                btn.disabled = false; btn.innerHTML = originalText;
-            }
-        }
-
-        async function goToSelection() {
-            document.getElementById('displayName').innerText = studentInfo.name;
-            document.getElementById('displayClass').innerText = studentInfo.classLevel;
-            document.getElementById('loginSection').style.display = 'none';
-            document.getElementById('selectionSection').style.display = 'block';
-            
-            let conditionText = "";
-            if (studentInfo.classLevel == "1" || studentInfo.classLevel == "4") {
-                conditionText = "ต้องมี ISTEM, Teacher, Parent ครบทุกกลุ่ม";
-            } else {
-                conditionText = "ต้องมี Teacher และ Parent (ห้ามเลือก ISTEM)";
-            }
-            document.getElementById('userConditionText').innerText = conditionText;
-
-            try {
-                const { data, error } = await client.from('activity_counts').select('*');
-                if (error) throw error;
-                renderTable(data);
-            } catch (err) {
-                console.error(err);
-                Swal.fire('Error', 'โหลดข้อมูลกิจกรรมไม่สำเร็จ', 'error');
-            }
-        }
-
-        // --- 2. สร้างตาราง (แก้บั๊กชื่อกิจกรรม) ---
-        function renderTable(data) {
-            let grouped = {};
-            activityDataMap = {}; // Reset map
-
-            data.forEach(row => {
-                // ✅ เก็บข้อมูลลง Map โดยใช้ ID เป็นกุญแจ (แก้ปัญหาชื่อยาว/มีเครื่องหมาย)
-                activityDataMap[row.id] = row;
-
-                let name = row.name;
-                if (!grouped[name]) grouped[name] = { name: name, group: row.group_type, slots: {} };
-                grouped[name].slots[row.slot] = row; 
-            });
-
-            let html = '';
-            for (let key in grouped) {
-                let item = grouped[key];
-                let badgeClass = item.group === 'ISTEM' ? 'badge-istem' : (item.group === 'Teacher' ? 'badge-teacher' : 'badge-parent');
-                
-                html += `<tr>`;
-                html += `<td class="sticky-col bg-white border-end p-2"><div class="fw-bold small">${item.name}</div><span class="badge ${badgeClass}">${item.group}</span></td>`;
-                
-                for (let s = 1; s <= 4; s++) {
-                    let slotData = item.slots[s];
-                    html += `<td class="text-center p-1 align-middle">`;
-                    if (slotData) {
-                        let id = slotData.id; 
-                        let remain = slotData.max_seats - slotData.current_seats;
-                        
-                        if (remain <= 0) {
-                            html += `<button class="slot-btn btn-full" disabled>เต็ม</button>`;
-                        } else {
-                            // ✅ ส่งแค่ ID เข้าไปในฟังก์ชัน (แก้ปัญหา HTML พัง)
-                            let btnId = `btn_s${s}_${id}`;
-                            html += `<button id="${btnId}" class="slot-btn btn-green" 
-                                    data-remain="${remain}"
-                                    onclick="selectSlot(${s}, '${id}')">
-                                    <span class="d-block fw-bold">${remain}</span>
-                                    <span style="font-size:0.6rem">ว่าง</span>
-                                    </button>`;
-                        }
-                    } else {
-                        html += `<span class="text-muted small">-</span>`;
-                    }
-                    html += `</td>`;
-                }
-                html += `</tr>`;
-            }
-            document.getElementById('activityTableBody').innerHTML = html;
-            document.getElementById('loading').style.display = 'none';
-            document.getElementById('tableArea').style.display = 'block';
-            document.getElementById('footerBar').style.display = 'flex';
-        }
-
-        // --- 3. ระบบเลือกวิชา (ดึงชื่อจาก Map) ---
-        function selectSlot(slot, id) {
-            // ✅ ดึงข้อมูลจาก Map ด้วย ID
-            const activity = activityDataMap[id];
-            if (!activity) return; // กันพลาด
-
-            const name = activity.name;
-            const group = activity.group_type;
-
-            const nonIstemLevels = ["2", "3", "5", "6"];
-            if (nonIstemLevels.includes(studentInfo.classLevel) && group === "ISTEM") {
-                Swal.fire({icon: 'warning', title: 'เลือกไม่ได้', text: 'ระดับชั้นของคุณไม่สามารถเลือกกิจกรรม ISTEM ได้', confirmButtonColor: '#ffc107'});
-                return;
-            }
-
-            if (selections[slot] && selections[slot].id === id) {
-                selections[slot] = null;
-                updateUI(slot, id, false);
-                validateAndCheck();
-                return;
-            }
-            for (let s = 1; s <= 4; s++) {
-                if (s !== slot && selections[s] && selections[s].name === name) {
-                    Swal.fire({icon: 'warning', title: 'ซ้ำ!', text: `วิชา "${name}" ถูกเลือกไปแล้ว`, confirmButtonColor: '#ffc107'});
-                    return;
-                }
-            }
-            if (selections[slot]) {
-                let oldId = selections[slot].id;
-                updateUI(slot, oldId, false);
-            }
-            selections[slot] = { id: id, name: name, group: group };
-            updateUI(slot, id, true);
-            validateAndCheck();
-        }
-
-        function updateUI(slot, id, isSelected) {
-            let btn = document.getElementById(`btn_s${slot}_${id}`);
-            if (btn) {
-                let remain = btn.getAttribute('data-remain');
-                btn.className = isSelected ? 'slot-btn btn-selected' : 'slot-btn btn-green';
-                btn.innerHTML = isSelected ? `<i class="bi bi-check-lg"></i> เลือก` : `<span class="d-block fw-bold">${remain}</span><span style="font-size:0.6rem">ว่าง</span>`;
-            }
-        }
-
-        // --- 4. ตรวจสอบเงื่อนไข ---
-        function validateAndCheck() {
-            let count = 0;
-            let groups = { 'ISTEM': 0, 'Teacher': 0, 'Parent': 0 };
-
-            for (let s = 1; s <= 4; s++) {
-                if (selections[s]) {
-                    count++;
-                    if (groups[selections[s].group] !== undefined) groups[selections[s].group]++;
-                }
-            }
-
-            let statusDiv = document.getElementById('statusText');
-            let btn = document.getElementById('btnConfirm');
-            let isTimeComplete = (count === 4);
-            let isGroupValid = false;
-            let missing = [];
-
-            let isMustHaveISTEM = (studentInfo.classLevel == "1" || studentInfo.classLevel == "4");
-
-            if (isMustHaveISTEM) {
-                if (groups['ISTEM'] >= 1 && groups['Teacher'] >= 1 && groups['Parent'] >= 1) isGroupValid = true;
-                else {
-                    if (groups['ISTEM'] == 0) missing.push("ISTEM");
-                    if (groups['Teacher'] == 0) missing.push("Teacher");
-                    if (groups['Parent'] == 0) missing.push("Parent");
-                }
-            } else {
-                if (groups['Teacher'] >= 1 && groups['Parent'] >= 1) isGroupValid = true;
-                else {
-                    if (groups['Teacher'] == 0) missing.push("Teacher");
-                    if (groups['Parent'] == 0) missing.push("Parent");
-                }
-            }
-
-            if (!isTimeComplete) missing.unshift("เวลาไม่ครบ");
-
-            if (isTimeComplete && isGroupValid) {
-                statusDiv.innerHTML = `<span class="text-success"><i class="bi bi-check-circle-fill"></i> ครบถ้วนพร้อมส่ง!</span>`;
-                btn.disabled = false; btn.classList.replace('btn-secondary', 'btn-primary');
-            } else {
-                statusDiv.innerHTML = "ขาด: " + missing.join(", ");
-                statusDiv.className = 'fw-bold text-danger small';
-                btn.disabled = true; btn.classList.replace('btn-primary', 'btn-secondary');
-            }
-        }
-
-        // --- 5. บันทึก ---
-        function submitAll() {
-            Swal.fire({
-                title: 'ยืนยันการลงทะเบียน?', text: "ตรวจสอบข้อมูลให้ถูกต้องก่อนส่งนะครับ", icon: 'question', showCancelButton: true, confirmButtonColor: '#0d47a1', confirmButtonText: 'ยืนยัน', cancelButtonText: 'ยกเลิก'
-            }).then(async (result) => {
-                if (result.isConfirmed) {
-                    Swal.fire({title: 'กำลังบันทึกข้อมูล...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); }});
-
-                    const payload = {
-                        student_name: studentInfo.name, student_id: studentInfo.id, class_level: studentInfo.classLevel, room: studentInfo.room, number: studentInfo.number,
-                        slot1_id: selections[1].id, slot2_id: selections[2].id, slot3_id: selections[3].id, slot4_id: selections[4].id
-                    };
-
-                    try {
-                        const { error } = await client.from('registrations').insert([payload]);
-                        if (error) throw error;
-                        Swal.fire({icon: 'success', title: 'สำเร็จ!', text: 'บันทึกข้อมูลเรียบร้อยแล้ว', confirmButtonColor: '#198754'}).then(() => showSuccessPage(payload));
-                    } catch (err) {
-                        Swal.fire({icon: 'error', title: 'เกิดข้อผิดพลาด', text: err.code === '23505' ? 'รหัสนักเรียนนี้ลงทะเบียนไปแล้ว' : err.message});
-                    }
-                }
-            });
-        }
-
-        function showSuccessPage(data) {
-            document.getElementById('selectionSection').style.display = 'none';
-            document.getElementById('footerBar').style.display = 'none';
-            document.getElementById('successSection').style.display = 'block';
-
-            document.getElementById('successName').innerText = data.student_name;
-            document.getElementById('successId').innerText = data.student_id;
-            document.getElementById('successClass').innerText = data.class_level;
-            document.getElementById('successRoom').innerText = data.room;
-            document.getElementById('successNumber').innerText = data.number;
-
-            let html = '';
-            const times = { 1: '09:00 - 10:20', 2: '10:30 - 11:50', 3: '13:00 - 14:20', 4: '14:30 - 15:50' };
-
-            for(let i=1; i<=4; i++) {
-                if(selections[i]) {
-                    html += `<tr><td class="bg-light align-middle"><span class="badge bg-secondary mb-1">Slot ${i}</span><br><span class="small">${times[i]}</span></td><td class="text-start align-middle"><div class="fw-bold text-primary">${selections[i].name}</div><span class="badge bg-info text-dark" style="font-size:0.7rem">${selections[i].group}</span></td></tr>`;
-                }
-            }
-            document.getElementById('successTableBody').innerHTML = html;
-            window.scrollTo(0, 0);
-        }
-
-        function saveAsImage() {
-            Swal.fire({title: 'กำลังสร้างรูปภาพ...', text: 'กรุณารอสักครู่', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); }});
-            const element = document.getElementById("captureArea");
-            html2canvas(element, { scale: 2, backgroundColor: "#ffffff" }).then(canvas => {
-                Swal.close();
-                const link = document.createElement('a');
-                link.download = `Result_${studentInfo.id}.png`;
-                link.href = canvas.toDataURL("image/png");
-                link.click();
-            });
-        }
-    </script>
 </body>
 </html>
