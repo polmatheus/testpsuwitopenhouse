@@ -25,7 +25,6 @@
             box-shadow: 0 5px 20px rgba(0,0,0,0.05); margin-bottom: 30px;
         }
 
-        /* Status Box Styles */
         .status-cell { vertical-align: middle; padding: 4px !important; text-align: center; }
         
         .status-box {
@@ -36,20 +35,10 @@
             transition: all 0.2s;
         }
 
-        /* สีเขียว: เช็คแล้ว */
-        .box-checked { 
-            background-color: #d1e7dd; color: #0f5132; border-color: #badbcc;
-        }
-        /* สีแดง: ยังไม่เช็ค */
-        .box-unchecked { 
-            background-color: #f8d7da; color: #842029; border-color: #f5c2c7;
-        }
-        /* สีเทา: ไม่มีรอบ */
-        .box-none { 
-            background-color: #f8f9fa; color: #adb5bd; 
-        }
+        .box-checked { background-color: #d1e7dd; color: #0f5132; border-color: #badbcc; }
+        .box-unchecked { background-color: #f8d7da; color: #842029; border-color: #f5c2c7; }
+        .box-none { background-color: #f8f9fa; color: #adb5bd; }
 
-        /* Stat Badges inside box */
         .mini-stat {
             font-size: 0.7rem; margin-top: 4px; display: flex; gap: 3px; justify-content: center; flex-wrap: wrap;
         }
@@ -58,10 +47,9 @@
         }
 
         .sticky-col { position: sticky; left: 0; background: white; z-index: 5; border-right: 2px solid #dee2e6; min-width: 200px; max-width: 250px; }
+        .id-badge { font-family: monospace; font-size: 0.75rem; background: #eee; padding: 2px 6px; border-radius: 4px; color: #555; display: inline-block; margin-top: 4px; }
 
-        @media print {
-            .no-print { display: none; }
-        }
+        @media print { .no-print { display: none; } }
     </style>
 </head>
 <body>
@@ -101,25 +89,20 @@
                 <table class="table table-bordered mb-0 align-middle">
                     <thead class="table-dark text-center small">
                         <tr>
-                            <th class="sticky-col py-3">รายชื่อกิจกรรม</th>
+                            <th class="sticky-col py-3">รายชื่อกิจกรรม (เรียงตามรหัส)</th>
                             <th width="18%">09:00<br><span class="badge bg-secondary">Slot 1</span></th>
                             <th width="18%">10:30<br><span class="badge bg-secondary">Slot 2</span></th>
                             <th width="18%">13:00<br><span class="badge bg-secondary">Slot 3</span></th>
                             <th width="18%">14:30<br><span class="badge bg-secondary">Slot 4</span></th>
                         </tr>
                     </thead>
-                    <tbody id="tableBody">
-                        </tbody>
+                    <tbody id="tableBody"></tbody>
                 </table>
             </div>
-            
         </div>
     </div>
 
     <script>
-        // ==========================================
-        // ⚠️ Supabase Config
-        // ==========================================
         const SUPABASE_URL = 'https://pqkaqsxmbewilzruogdw.supabase.co'; 
         const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBxa2Fxc3htYmV3aWx6cnVvZ2R3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg0ODgzMTksImV4cCI6MjA4NDA2NDMxOX0.TFyfNcFXcUUF29Iexmkjf6EaNIXAv8KuOFY_ydAY_z8'; 
         const client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
@@ -131,31 +114,14 @@
             document.getElementById('tableArea').style.display = 'none';
 
             try {
-                // 1. ดึงรายชื่อกิจกรรมทั้งหมด (จาก View activity_counts)
-                const { data: activities, error: err1 } = await client
-                    .from('activity_counts')
-                    .select('*');
-                
+                const { data: activities, error: err1 } = await client.from('activity_counts').select('*');
                 if (err1) {
-                    console.error("Error fetching activities:", err1);
-                    // ถ้า Error Permission (403) ให้แจ้งเตือน SQL
-                    if(err1.code === '42501' || err1.code === 'PGRST301') {
-                         alert("⚠️ ไม่ได้รับอนุญาตให้ดึงข้อมูลกิจกรรม\nกรุณารัน SQL: GRANT SELECT ON activity_counts TO anon;");
-                    }
+                    if(err1.code === '42501' || err1.code === 'PGRST301') alert("⚠️ กรุณารัน SQL: GRANT SELECT ON activity_counts TO anon;");
                     throw err1;
                 }
 
-                // 2. ดึงข้อมูลการเช็คชื่อทั้งหมด (จาก Table attendance)
-                const { data: attendance, error: err2 } = await client
-                    .from('attendance')
-                    .select('activity_id, slot, status');
-
+                const { data: attendance, error: err2 } = await client.from('attendance').select('activity_id, slot, status');
                 if (err2) throw err2;
-
-                // ตรวจสอบข้อมูลเบื้องต้น
-                if (activities.length === 0) {
-                    console.warn("ไม่พบข้อมูลกิจกรรม (อาจจะยังไม่ได้ Grant Permission)");
-                }
 
                 processAndRender(activities, attendance);
 
@@ -168,12 +134,10 @@
         }
 
         function processAndRender(activities, attendanceRecords) {
-            // 1. เตรียม Object เก็บสถิติการเช็คชื่อ
-            // Map Key จะเป็น String เสมอ เพื่อแก้ปัญหา Data Type Mismatch (Text vs Number)
             let statsMap = {};
 
             attendanceRecords.forEach(rec => {
-                let aid = String(rec.activity_id); // 🔥 บังคับเป็น Text
+                let aid = String(rec.activity_id); 
                 let s = rec.slot;
                 
                 if (!statsMap[aid]) statsMap[aid] = {};
@@ -186,32 +150,35 @@
                 else if (rec.status === 'leave') statsMap[aid][s].l++;
             });
 
-            // 2. จัดกลุ่มกิจกรรมเพื่อแสดงผล
             let grouped = {};
             activities.forEach(row => {
                 if (!grouped[row.name]) grouped[row.name] = { 
                     name: row.name, 
                     group: row.group_type, 
-                    id: String(row.id), // 🔥 บังคับเป็น Text เพื่อให้ตรงกัน
+                    id: String(row.id), 
                     slots: {} 
                 };
                 grouped[row.name].slots[row.slot] = row; 
             });
 
-            // 3. เรียงลำดับ (Group: ISTEM->Teacher->Parent, แล้วตามด้วยชื่อ)
+            // ============================================================
+            // 🔥 ส่วนที่แก้ไข: การเรียงลำดับ (Sorting)
+            // ============================================================
             let sortedItems = Object.values(grouped).sort((a, b) => {
+                // 1. เรียงตามกลุ่มก่อน (ISTEM -> Teacher -> Parent)
                 const groupOrder = { 'ISTEM': 1, 'Teacher': 2, 'Parent': 3 };
                 let orderA = groupOrder[a.group] || 99;
                 let orderB = groupOrder[b.group] || 99;
                 
                 if (orderA !== orderB) return orderA - orderB;
-                return a.name.localeCompare(b.name, 'th');
+
+                // 2. ถ้ากลุ่มเหมือนกัน -> เรียงตาม ID (String Compare)
+                // ใช้ localeCompare พร้อม numeric: true เพื่อให้เรียงเลขสวยๆ (เช่น 1, 2, 10 ไม่ใช่ 1, 10, 2)
+                return String(a.id).localeCompare(String(b.id), undefined, { numeric: true, sensitivity: 'base' });
             });
 
-            // 4. สร้าง HTML
             let html = '';
             for (let item of sortedItems) {
-                // Badge สีกลุ่ม
                 let groupBadge = 'bg-secondary';
                 if(item.group === 'ISTEM') groupBadge = 'bg-primary';
                 else if(item.group === 'Teacher') groupBadge = 'bg-info text-dark';
@@ -219,24 +186,23 @@
 
                 html += `<tr>`;
                 
-                // คอลัมน์ชื่อกิจกรรม
                 html += `<td class="sticky-col p-2 align-middle border-end">
                             <div class="fw-bold text-dark" style="font-size: 0.9rem;">${item.name}</div>
-                            <span class="badge ${groupBadge} mt-1" style="font-size: 0.65rem;">${item.group}</span>
+                            <div class="d-flex justify-content-between align-items-center mt-1">
+                                <span class="badge ${groupBadge}" style="font-size: 0.65rem;">${item.group}</span>
+                                <span class="id-badge">${item.id}</span>
+                            </div>
                         </td>`;
                 
-                // Loop Slot 1-4
                 for (let s = 1; s <= 4; s++) {
-                    let slotActivity = item.slots[s]; // ดูว่ากิจกรรมนี้มีเปิดใน Slot นี้ไหม
+                    let slotActivity = item.slots[s];
                     html += `<td class="status-cell">`;
 
                     if (slotActivity) {
-                        // 🔥 ค้นหาด้วย ID ที่เป็น Text
                         let lookupId = String(item.id);
                         let stat = (statsMap[lookupId] && statsMap[lookupId][s]);
 
                         if (stat && stat.count > 0) {
-                            // ✅ กรณี: มีการเช็คชื่อแล้ว (สีเขียว)
                             html += `
                             <div class="status-box box-checked">
                                 <div class="fw-bold text-success"><i class="bi bi-check-circle-fill"></i> เช็คแล้ว</div>
@@ -248,7 +214,6 @@
                                 </div>
                             </div>`;
                         } else {
-                            // ❌ กรณี: ยังไม่มีข้อมูลเช็คชื่อ (สีแดง)
                             html += `
                             <div class="status-box box-unchecked">
                                 <div class="fw-bold"><i class="bi bi-exclamation-circle"></i> ยังไม่เช็ค</div>
@@ -256,7 +221,6 @@
                             </div>`;
                         }
                     } else {
-                        // ⚪ กรณี: กิจกรรมนี้ไม่มีใน Slot นี้ (สีเทา)
                         html += `<div class="status-box box-none">-</div>`;
                     }
                     html += `</td>`;
