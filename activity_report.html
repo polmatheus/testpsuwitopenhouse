@@ -26,8 +26,10 @@
         .box-unchecked { background-color: #f8d7da; color: #842029; border-color: #f5c2c7; }
         .box-none { background-color: #f8f9fa; color: #adb5bd; }
 
-        .mini-stat { font-size: 0.7rem; margin-top: 4px; display: flex; gap: 3px; justify-content: center; flex-wrap: wrap; }
-        .ms-item { background: rgba(255,255,255,0.7); padding: 1px 5px; border-radius: 4px; font-weight: bold; font-size: 0.65rem; }
+        /* ปรับขนาดตัวเลขสถิติให้พอดี */
+        .mini-stat { font-size: 0.7rem; margin-top: 4px; display: flex; gap: 2px; justify-content: center; flex-wrap: wrap; }
+        .ms-item { background: rgba(255,255,255,0.7); padding: 1px 4px; border-radius: 4px; font-weight: bold; font-size: 0.65rem; min-width: 25px; text-align: center; }
+        
         .sticky-col { position: sticky; left: 0; background: white; z-index: 5; border-right: 2px solid #dee2e6; min-width: 200px; max-width: 250px; }
         .id-badge { font-family: monospace; font-size: 0.85rem; background: #eee; padding: 2px 6px; border-radius: 4px; color: #333; font-weight: bold; }
         
@@ -38,7 +40,7 @@
 
     <div class="banner-container text-center no-print">
         <div class="container">
-            <h4 class="fw-bold m-0"><i class="bi bi-calendar2-check-fill"></i> Dashboard ติดตามการเช็คชื่อ</h4>
+            <h4 class="fw-bold m-0"><i class="bi bi-calendar2-check-fill"></i> Dashboard ติดตามการเช็คชื่อtest</h4>
             <p class="m-0 text-white-50 small">เรียงตามกลุ่ม > รหัสกิจกรรม</p>
         </div>
     </div>
@@ -117,7 +119,7 @@
         }
 
         function renderDashboard(activities, attendanceRecords, idToNameMap) {
-            // 1. สร้าง Stats Map (ใช้ Key ผสม: Name_Slot)
+            // 1. สร้าง Stats Map
             let statsMap = {};
             attendanceRecords.forEach(rec => {
                 let recId = String(rec.activity_id).trim();
@@ -142,29 +144,22 @@
                 if (!grouped[row.name]) grouped[row.name] = { 
                     name: row.name, 
                     group: row.group_type, 
-                    id: row.id, // ID นี้จะถูกใช้ในการเรียง
+                    id: row.id, 
                     slots: {} 
                 };
                 grouped[row.name].slots[row.slot] = row; 
             });
 
-            // ==========================================
-            // 🔥 ส่วนที่แก้ไข: การเรียงลำดับ (Sorting)
-            // ==========================================
+            // 3. เรียงลำดับ (กลุ่ม -> รหัส)
             let sortedItems = Object.values(grouped).sort((a, b) => {
-                // 1. เรียงตามกลุ่มก่อน (ISTEM -> Teacher -> Parent)
                 const groupOrder = { 'ISTEM': 1, 'Teacher': 2, 'Parent': 3 };
                 let orderA = groupOrder[a.group] || 99;
                 let orderB = groupOrder[b.group] || 99;
-                
                 if (orderA !== orderB) return orderA - orderB;
-
-                // 2. ถ้ากลุ่มเดียวกัน -> เรียงตาม รหัส (ID)
-                // ใช้ numeric: true เพื่อให้เรียงเลขธรรมชาติ (C1, C2, C10)
                 return String(a.id).localeCompare(String(b.id), undefined, { numeric: true, sensitivity: 'base' });
             });
 
-            // 3. วาดตาราง
+            // 4. วาดตาราง
             let html = '';
             for (let item of sortedItems) {
                 let groupBadge = 'bg-secondary';
@@ -197,9 +192,10 @@
                             <div class="status-box box-checked">
                                 <div class="fw-bold text-success"><i class="bi bi-check-circle-fill"></i> เช็คแล้ว</div>
                                 <div class="mini-stat">
-                                    <span class="ms-item text-success">P:${stat.p}</span>
-                                    <span class="ms-item text-danger">A:${stat.a}</span>
-                                    <span class="ms-item text-warning">L:${stat.l}</span>
+                                    <span class="ms-item text-success" title="มา">P:${stat.p}</span>
+                                    <span class="ms-item text-danger" title="ขาด">A:${stat.a}</span>
+                                    <span class="ms-item text-warning" title="ลา">L:${stat.l}</span>
+                                    <span class="ms-item text-info" title="สาย">T:${stat.t}</span>
                                 </div>
                             </div>`;
                         } else {
