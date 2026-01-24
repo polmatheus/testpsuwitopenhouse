@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ระบบเช็คชื่อกิจกรรม - PSUWIT</title>
+    
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+    <style>
+        :root { --primary-color: #0d47a1; --secondary-color: #1976d2; --bg-color: #f0f4f8; }
+        body { font-family: 'Sarabun', sans-serif; background-color: var(--bg-color); min-height: 100vh; padding-bottom: 60px; }
+        
+        .banner-container {
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: white; padding: 15px 0; border-radius: 0 0 20px 20px; margin-bottom: 20px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        }
+        
+        .main-card {
+            background: white; border-radius: 15px; padding: 20px; 
+            box-shadow: 0 5px 20px rgba(0,0,0,0.05); margin-bottom: 20px;
+        }
+
+        /* Checkbox Styling */
+        .btn-check-group .btn { border-radius: 50px; font-size: 0.85rem; padding: 5px 10px; margin: 0 2px; }
+        .btn-check:checked + .btn-outline-success { background-color: #198754; color: white; }
+        .btn-check:checked + .btn-outline-warning { background-color: #ffc107; color: black; }
+        .btn-check:checked + .btn-outline-info { background-color: #0dcaf0; color: black; }
+        .btn-check:checked + .btn-outline-danger { background-color: #dc3545; color: white; }
+
+        .student-row { border-bottom: 1px solid #eee; padding: 10px 0; }
+        .student-row:last-child { border-bottom: none; }
+        
+        .sticky-save {
+            position: fixed; bottom: 0; left: 0; right: 0;
+            background: white; padding: 15px;
+            box-shadow: 0 -2px 10px rgba(0,0,0,0.1); z-index: 1000;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="banner-container text-center">
+        <div class="container">
+            <h4 class="fw-bold m-0"><i class="bi bi-calendar-check"></i> ระบบเช็คชื่อ</h4>
+        </div>
+    </div>
+
+    <div class="container">
+        
+        <div class="main-card">
+            <div class="d-flex justify-content-between mb-3">
+                <a href="index.html" class="btn btn-outline-secondary btn-sm rounded-pill"><i class="bi bi-house"></i> หน้าแรก</a>
+                <a href="dashboard.html" class="btn btn-outline-primary btn-sm rounded-pill"><i class="bi bi-bar-chart"></i> Dashboard</a>
+            </div>
+
+            <div class="row g-2">
+                <div class="col-md-3 col-6">
+                    <label class="small text-muted fw-bold">เลือกช่วงเวลา (Slot)</label>
+                    <select id="slotSelect" class="form-select" onchange="loadActivities()">
+                        <option value="1">09:00 (Slot 1)</option>
+                        <option value="2">10:30 (Slot 2)</option>
+                        <option value="3">13:00 (Slot 3)</option>
+                        <option value="4">14:30 (Slot 4)</option>
+                    </select>
+                </div>
+                <div class="col-md-9 col-12">
+                    <label class="small text-muted fw-bold">เลือกกิจกรรม</label>
+                    <select id="activitySelect" class="form-select" disabled>
+                        <option value="">-- กำลังโหลดกิจกรรม --</option>
+                    </select>
+                </div>
+            </div>
+            <button onclick="loadStudents()" class="btn btn-primary w-100 mt-3 rounded-pill fw-bold">
+                <i class="bi bi-search"></i> เรียกรายชื่อ
+            </button>
+        </div>
+
+        <div id="studentListArea" class="main-card" style="display:none;">
+            <div class="d-flex justify-content-between align-items-center mb-2 border-bottom pb-2">
+                <h6 class="m-0 fw-bold text-primary">รายชื่อนักเรียน (<span id="countDisplay">0</span> คน)</h6>
+                <div class="text-end small text-muted">เลือกสถานะ</div>
+            </div>
+
+            <div id="studentContainer">
+                </div>
+        </div>
+
+        <div id="loading" class="text-center py-5" style="display:none;">
+            <div class="spinner-border text-primary"></div>
+            <p class="text-muted mt-2">กำลังโหลด...</p>
+        </div>
+    </div>
+
+    <div class="sticky-save d-flex justify-content-between align-items-center" id="saveBar" style="display:none;">
+        <span class="small text-muted">ตรวจสอบความถูกต้องก่อนบันทึก</span>
+        <button onclick="saveAttendance()" class="btn btn-success rounded-pill px-4 fw-bold">
+            <i class="bi bi-save"></i> บันทึกผล
+        </button>
+    </div>
+
+    <script>
+        // ==========================================
+        // ⚠️ Supabase Config
+        // ==========================================
+        const SUPABASE_URL = 'https://pqkaqsxmbewilzruogdw.supabase.co'; 
+        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBxa2Fxc3htYmV3aWx6cnVvZ2R3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg0ODgzMTksImV4cCI6MjA4NDA2NDMxOX0.TFyfNcFXcUUF29Iexmkjf6EaNIXAv8KuOFY_ydAY_z8'; 
+        const client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        let currentStudents = [];
+        let activitiesList = [];
+
+        // โหลดกิจกรรมเมื่อเปิดหน้า
+        document.addEventListener('DOMContentLoaded', () => {
+            loadActivities();
+        });
+
+        // 1. โหลดรายชื่อกิจกรรมมาใส่ Dropdown
+        async function loadActivities() {
+            const slot = document.getElementById('slotSelect').value;
+            const activitySelect = document.getElementById('activitySelect');
+            
+            activitySelect.innerHTML = '<option>กำลังโหลด...</option>';
+            activitySelect.disabled = true;
+
+            try {
+                // ดึงข้อมูลกิจกรรมทั้งหมด
+                const { data, error } = await client.from('activity_counts').select('*');
+                if (error) throw error;
+
+                // กรองเฉพาะกิจกรรมที่มีใน Slot ที่เลือก
+                const filtered = data.filter(row => row.slot == slot);
+                
+                // เรียงลำดับชื่อ
+                filtered.sort((a, b) => a.name.localeCompare(b.name, 'th'));
+
+                let html = '<option value="">-- เลือกกิจกรรม --</option>';
+                filtered.forEach(act => {
+                    html += `<option value="${act.id}">${act.name} (${act.group_type})</option>`;
+                });
+                
+                activitySelect.innerHTML = html;
+                activitySelect.disabled = false;
+
+            } catch (err) {
+                console.error(err);
+                activitySelect.innerHTML = '<option>โหลดผิดพลาด</option>';
+            }
+        }
+
+        // 2. โหลดรายชื่อนักเรียน + ข้อมูลการเช็คชื่อเก่า
+        async function loadStudents() {
+            const slot = document.getElementById('slotSelect').value;
+            const activityId = document.getElementById('activitySelect').value;
+
+            if (!activityId) {
+                Swal.fire('แจ้งเตือน', 'กรุณาเลือกกิจกรรมก่อนครับ', 'warning');
+                return;
+            }
+
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('studentListArea').style.display = 'none';
+            document.getElementById('saveBar').style.display = 'none';
+
+            try {
+                // 2.1 ดึงรายชื่อนักเรียนที่ลงทะเบียนวิชานี้ ใน Slot นี้
+                // Query: select * from registrations where slotX_id = activityId
+                const colName = `slot${slot}_id`;
+                const { data: students, error: err1 } = await client
+                    .from('registrations')
+                    .select('*')
+                    .eq(colName, activityId); // ใช้ Dynamic Column Name
+
+                if (err1) throw err1;
+
+                // 2.2 ดึงข้อมูลการเช็คชื่อที่เคยบันทึกไว้แล้ว (ถ้ามี)
+                const { data: attendance, error: err2 } = await client
+                    .from('attendance')
+                    .select('*')
+                    .eq('activity_id', activityId)
+                    .eq('slot', slot);
+
+                if (err2) throw err2;
+
+                // เรียงลำดับนักเรียนตามชั้น/ห้อง/เลขที่
+                students.sort((a, b) => {
+                    if (a.class_level != b.class_level) return a.class_level - b.class_level;
+                    if (a.room != b.room) return a.room - b.room;
+                    return Number(a.number) - Number(b.number);
+                });
+
+                currentStudents = students;
+                renderStudentList(students, attendance);
+
+            } catch (err) {
+                console.error(err);
+                Swal.fire('Error', 'เกิดข้อผิดพลาดในการดึงข้อมูล', 'error');
+            } finally {
+                document.getElementById('loading').style.display = 'none';
+            }
+        }
+
+        // 3. แสดงผลรายชื่อ
+        function renderStudentList(students, attendance) {
+            const container = document.getElementById('studentContainer');
+            document.getElementById('countDisplay').innerText = students.length;
+            
+            if (students.length === 0) {
+                container.innerHTML = '<div class="text-center text-muted py-3">ไม่มีนักเรียนลงทะเบียนในวิชานี้</div>';
+                document.getElementById('studentListArea').style.display = 'block';
+                return;
+            }
+
+            let html = '';
+            
+            // สร้าง Map ของ Attendance เพื่อให้ค้นหาง่าย { student_id: status }
+            let attendMap = {};
+            attendance.forEach(rec => attendMap[rec.student_id] = rec.status);
+
+            students.forEach(std => {
+                // เช็คสถานะเก่า ถ้าไม่มีให้ default เป็น 'present' (มา) หรือปล่อยว่าง
+                // ในที่นี้ผมจะปล่อยว่างให้ติ๊กเอง หรือจะให้ default เป็น 'present' ก็ได้
+                let status = attendMap[std.student_id] || ''; 
+                
+                let checkPresent = status === 'present' ? 'checked' : '';
+                let checkLeave = status === 'leave' ? 'checked' : '';
+                let checkLate = status === 'late' ? 'checked' : '';
+                let checkAbsent = status === 'absent' ? 'checked' : '';
+
+                // ถ้ายังไม่เคยเช็คเลย ให้ default เป็น มา (Present) เพื่อความเร็วไหม? 
+                // ถ้าเอา Default มา ให้ Uncomment บรรทัดล่าง
+                if (status === '') checkPresent = 'checked'; 
+
+                html += `
+                <div class="student-row d-flex flex-column flex-sm-row align-items-sm-center justify-content-between">
+                    <div class="mb-2 mb-sm-0">
+                        <div class="fw-bold">${std.student_name}</div>
+                        <div class="small text-muted">
+                            ${std.student_id} | ม.${std.class_level}/${std.room} เลขที่ ${std.number}
+                        </div>
+                    </div>
+                    <div class="btn-check-group d-flex">
+                        <input type="radio" class="btn-check" name="status_${std.student_id}" id="p_${std.student_id}" value="present" ${checkPresent}>
+                        <label class="btn btn-outline-success" for="p_${std.student_id}">มา</label>
+
+                        <input type="radio" class="btn-check" name="status_${std.student_id}" id="l_${std.student_id}" value="leave" ${checkLeave}>
+                        <label class="btn btn-outline-warning" for="l_${std.student_id}">ลา</label>
+
+                        <input type="radio" class="btn-check" name="status_${std.student_id}" id="t_${std.student_id}" value="late" ${checkLate}>
+                        <label class="btn btn-outline-info" for="t_${std.student_id}">สาย</label>
+
+                        <input type="radio" class="btn-check" name="status_${std.student_id}" id="a_${std.student_id}" value="absent" ${checkAbsent}>
+                        <label class="btn btn-outline-danger" for="a_${std.student_id}">ขาด</label>
+                    </div>
+                </div>`;
+            });
+
+            container.innerHTML = html;
+            document.getElementById('studentListArea').style.display = 'block';
+            document.getElementById('saveBar').style.display = 'flex';
+        }
+
+        // 4. บันทึกข้อมูล
+        async function saveAttendance() {
+            const slot = document.getElementById('slotSelect').value;
+            const activityId = document.getElementById('activitySelect').value;
+
+            Swal.fire({
+                title: 'กำลังบันทึก...',
+                didOpen: () => Swal.showLoading()
+            });
+
+            let upsertData = [];
+
+            // วนลูปรายชื่อนักเรียนทั้งหมดเพื่อดึงค่าจาก Radio Button
+            currentStudents.forEach(std => {
+                // หา Radio ที่ถูก check
+                const radios = document.getElementsByName(`status_${std.student_id}`);
+                let selectedStatus = null;
+                for (let r of radios) {
+                    if (r.checked) {
+                        selectedStatus = r.value;
+                        break;
+                    }
+                }
+
+                if (selectedStatus) {
+                    upsertData.push({
+                        student_id: std.student_id,
+                        activity_id: parseInt(activityId),
+                        slot: parseInt(slot),
+                        status: selectedStatus
+                    });
+                }
+            });
+
+            try {
+                // Upsert (ถ้าซ้ำให้ update, ถ้าไม่มีให้ insert)
+                const { error } = await client
+                    .from('attendance')
+                    .upsert(upsertData, { onConflict: 'student_id, activity_id, slot' });
+
+                if (error) throw error;
+
+                Swal.fire({
+                    icon: 'success',
+                    title: 'บันทึกเรียบร้อย',
+                    text: `บันทึกข้อมูล ${upsertData.length} คนสำเร็จ`,
+                    timer: 1500
+                });
+
+            } catch (err) {
+                console.error(err);
+                Swal.fire('Error', 'บันทึกข้อมูลไม่สำเร็จ', 'error');
+            }
+        }
+    </script>
+</body>
+</html>
