@@ -24,7 +24,6 @@
             background: white; border-radius: 15px; padding: 20px; 
             box-shadow: 0 5px 20px rgba(0,0,0,0.05); margin-bottom: 20px;
         }
-        /* Checkbox Styling */
         .btn-check-group .btn { border-radius: 50px; font-size: 0.8rem; padding: 5px 10px; margin: 0 2px; }
         .student-row { border-bottom: 1px solid #eee; padding: 12px 0; }
         .student-row:last-child { border-bottom: none; }
@@ -39,7 +38,7 @@
 
     <div class="banner-container text-center">
         <div class="container">
-            <h4 class="fw-bold m-0"><i class="bi bi-clipboard-check-fill"></i> ระบบเช็คชื่อ</h4>
+            <h4 class="fw-bold m-0"><i class="bi bi-clipboard-check-fill"></i> ระบบเช็คชื่อ1</h4>
         </div>
     </div>
 
@@ -105,9 +104,6 @@
     </div>
 
     <script>
-        // ==========================================
-        // ⚠️ Supabase Config
-        // ==========================================
         const SUPABASE_URL = 'https://pqkaqsxmbewilzruogdw.supabase.co'; 
         const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBxa2Fxc3htYmV3aWx6cnVvZ2R3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg0ODgzMTksImV4cCI6MjA4NDA2NDMxOX0.TFyfNcFXcUUF29Iexmkjf6EaNIXAv8KuOFY_ydAY_z8'; 
         const client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
@@ -119,7 +115,7 @@
             initActivities();
         });
 
-        // 1. โหลดกิจกรรมทั้งหมด
+        // 1. โหลดกิจกรรม
         async function initActivities() {
             try {
                 const { data, error } = await client.from('activity_counts').select('*');
@@ -132,7 +128,7 @@
             }
         }
 
-        // 2. กรองกิจกรรมตาม Slot และ Type
+        // 2. กรองกิจกรรมตาม Slot
         function filterActivities() {
             const slot = document.getElementById('slotSelect').value;
             const type = document.getElementById('typeSelect').value;
@@ -154,7 +150,7 @@
             actSelect.innerHTML = html;
         }
 
-        // 3. โหลดนักเรียน
+        // 3. โหลดรายชื่อนักเรียน (จุดสำคัญคือตรง colName)
         async function loadStudents() {
             const slot = document.getElementById('slotSelect').value;
             const activityId = document.getElementById('activitySelect').value;
@@ -169,18 +165,21 @@
             document.getElementById('saveBar').style.display = 'none';
 
             try {
-                // ดึงรายชื่อจาก registrations โดยดูว่า slotX_id ตรงกับ activityId ไหม
-                // ชื่อคอลัมน์ต้องตรงกับใน Database: slot1_id, slot2_id, ...
-                const colName = `slot${slot}_id`; 
-                
+                // =========================================================
+                // 🔥 จุดสำคัญ: เปลี่ยนชื่อคอลัมน์ตาม Slot ที่เลือก (1-4)
+                // =========================================================
+                const colName = 'slot' + slot + '_id'; 
+                // เช่น เลือก Slot 1 -> colName = 'slot1_id'
+                // เลือก Slot 2 -> colName = 'slot2_id'
+
                 const { data: students, error: err1 } = await client
                     .from('registrations')
                     .select('*')
-                    .eq(colName, activityId); 
+                    .eq(colName, activityId); // ค้นหาเฉพาะคอลัมน์นั้นๆ
 
                 if (err1) throw err1;
 
-                // ดึงข้อมูลการเช็คชื่อเก่า (ถ้ามี)
+                // ดึงข้อมูลการเช็คชื่อเก่า
                 const { data: attendance, error: err2 } = await client
                     .from('attendance')
                     .select('*')
@@ -201,13 +200,12 @@
 
             } catch (err) {
                 console.error(err);
-                Swal.fire('Error', 'ไม่สามารถดึงข้อมูลได้ (เช็คชื่อคอลัมน์ใน DB)', 'error');
+                Swal.fire('Error', 'ไม่สามารถดึงข้อมูลได้', 'error');
             } finally {
                 document.getElementById('loading').style.display = 'none';
             }
         }
 
-        // 4. แสดงรายชื่อ
         function renderStudentList(students, attendance) {
             const container = document.getElementById('studentContainer');
             document.getElementById('countDisplay').innerText = students.length;
@@ -218,14 +216,13 @@
                 return;
             }
 
-            // Map ข้อมูลเก่า
             let attendMap = {};
             attendance.forEach(rec => attendMap[rec.student_id] = rec.status);
 
             let html = '';
             students.forEach(std => {
                 let status = attendMap[std.student_id] || '';
-                // Default: ถ้าไม่เคยเช็ค ให้ติ๊ก "มา" (Present)
+                // Default ให้ติ๊ก "มา"
                 if (status === '') status = 'present';
 
                 const isP = status === 'present' ? 'checked' : '';
@@ -262,7 +259,6 @@
             document.getElementById('saveBar').style.display = 'flex';
         }
 
-        // 5. บันทึก
         async function saveAttendance() {
             const slot = document.getElementById('slotSelect').value;
             const activityId = document.getElementById('activitySelect').value;
