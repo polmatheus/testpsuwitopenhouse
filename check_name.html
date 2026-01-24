@@ -13,32 +13,24 @@
 
     <style>
         :root { --primary-color: #0d47a1; --secondary-color: #1976d2; --bg-color: #f0f4f8; }
-        body { font-family: 'Sarabun', sans-serif; background-color: var(--bg-color); min-height: 100vh; padding-bottom: 60px; }
+        body { font-family: 'Sarabun', sans-serif; background-color: var(--bg-color); min-height: 100vh; padding-bottom: 80px; }
         
         .banner-container {
             background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
             color: white; padding: 15px 0; border-radius: 0 0 20px 20px; margin-bottom: 20px;
             box-shadow: 0 4px 10px rgba(0,0,0,0.1);
         }
-        
         .main-card {
             background: white; border-radius: 15px; padding: 20px; 
             box-shadow: 0 5px 20px rgba(0,0,0,0.05); margin-bottom: 20px;
         }
-
         /* Checkbox Styling */
-        .btn-check-group .btn { border-radius: 50px; font-size: 0.85rem; padding: 5px 10px; margin: 0 2px; }
-        .btn-check:checked + .btn-outline-success { background-color: #198754; color: white; }
-        .btn-check:checked + .btn-outline-warning { background-color: #ffc107; color: black; }
-        .btn-check:checked + .btn-outline-info { background-color: #0dcaf0; color: black; }
-        .btn-check:checked + .btn-outline-danger { background-color: #dc3545; color: white; }
-
-        .student-row { border-bottom: 1px solid #eee; padding: 10px 0; }
+        .btn-check-group .btn { border-radius: 50px; font-size: 0.8rem; padding: 5px 10px; margin: 0 2px; }
+        .student-row { border-bottom: 1px solid #eee; padding: 12px 0; }
         .student-row:last-child { border-bottom: none; }
-        
         .sticky-save {
             position: fixed; bottom: 0; left: 0; right: 0;
-            background: white; padding: 15px;
+            background: white; padding: 15px; border-top: 1px solid #ddd;
             box-shadow: 0 -2px 10px rgba(0,0,0,0.1); z-index: 1000;
         }
     </style>
@@ -47,12 +39,11 @@
 
     <div class="banner-container text-center">
         <div class="container">
-            <h4 class="fw-bold m-0"><i class="bi bi-calendar-check"></i> ระบบเช็คชื่อ</h4>
+            <h4 class="fw-bold m-0"><i class="bi bi-clipboard-check-fill"></i> ระบบเช็คชื่อ</h4>
         </div>
     </div>
 
     <div class="container">
-        
         <div class="main-card">
             <div class="d-flex justify-content-between mb-3">
                 <a href="index.html" class="btn btn-outline-secondary btn-sm rounded-pill"><i class="bi bi-house"></i> หน้าแรก</a>
@@ -61,7 +52,7 @@
 
             <div class="row g-2 mb-2">
                 <div class="col-6">
-                    <label class="small text-muted fw-bold">1. เลือกช่วงเวลา (Slot)</label>
+                    <label class="small text-muted fw-bold">1. เลือกช่วงเวลา</label>
                     <select id="slotSelect" class="form-select" onchange="filterActivities()">
                         <option value="1">09:00 (Slot 1)</option>
                         <option value="2">10:30 (Slot 2)</option>
@@ -83,28 +74,26 @@
             <div class="mb-3">
                 <label class="small text-muted fw-bold">3. เลือกกิจกรรม</label>
                 <select id="activitySelect" class="form-select">
-                    <option value="">-- กำลังโหลดข้อมูล... --</option>
+                    <option value="">กำลังโหลด...</option>
                 </select>
             </div>
 
-            <button onclick="loadStudents()" class="btn btn-primary w-100 mt-2 rounded-pill fw-bold">
+            <button onclick="loadStudents()" class="btn btn-primary w-100 rounded-pill fw-bold">
                 <i class="bi bi-search"></i> เรียกรายชื่อ
             </button>
         </div>
 
         <div id="studentListArea" class="main-card" style="display:none;">
             <div class="d-flex justify-content-between align-items-center mb-2 border-bottom pb-2">
-                <h6 class="m-0 fw-bold text-primary">รายชื่อนักเรียน (<span id="countDisplay">0</span> คน)</h6>
-                <div class="text-end small text-muted">เลือกสถานะ</div>
+                <h6 class="m-0 fw-bold text-primary">รายชื่อ (<span id="countDisplay">0</span> คน)</h6>
+                <small class="text-muted">เลือกสถานะ</small>
             </div>
-
-            <div id="studentContainer">
-                </div>
+            <div id="studentContainer"></div>
         </div>
 
         <div id="loading" class="text-center py-5" style="display:none;">
             <div class="spinner-border text-primary"></div>
-            <p class="text-muted mt-2">กำลังโหลด...</p>
+            <p class="text-muted mt-2">กำลังดึงข้อมูล...</p>
         </div>
     </div>
 
@@ -123,51 +112,41 @@
         const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBxa2Fxc3htYmV3aWx6cnVvZ2R3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg0ODgzMTksImV4cCI6MjA4NDA2NDMxOX0.TFyfNcFXcUUF29Iexmkjf6EaNIXAv8KuOFY_ydAY_z8'; 
         const client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-        let allActivities = []; // ตัวแปรเก็บกิจกรรมทั้งหมด
+        let allActivities = [];
         let currentStudents = [];
 
-        // ทำงานทันทีเมื่อเปิดหน้าเว็บ
         document.addEventListener('DOMContentLoaded', () => {
             initActivities();
         });
 
-        // 1. โหลดกิจกรรมทั้งหมดครั้งเดียว (เพื่อให้เร็ว)
+        // 1. โหลดกิจกรรมทั้งหมด
         async function initActivities() {
-            const activitySelect = document.getElementById('activitySelect');
             try {
                 const { data, error } = await client.from('activity_counts').select('*');
                 if (error) throw error;
-                
-                allActivities = data; // เก็บลงตัวแปร Global
-                filterActivities(); // เรียกฟังก์ชันกรองข้อมูล
-
+                allActivities = data;
+                filterActivities();
             } catch (err) {
                 console.error(err);
-                activitySelect.innerHTML = '<option>เกิดข้อผิดพลาดในการโหลด</option>';
+                document.getElementById('activitySelect').innerHTML = '<option>โหลดกิจกรรมไม่สำเร็จ</option>';
             }
         }
 
-        // 2. ฟังก์ชันกรองกิจกรรม ตาม Slot และ Type
+        // 2. กรองกิจกรรมตาม Slot และ Type
         function filterActivities() {
             const slot = document.getElementById('slotSelect').value;
             const type = document.getElementById('typeSelect').value;
             const actSelect = document.getElementById('activitySelect');
 
-            // กรองข้อมูล
             let filtered = allActivities.filter(item => item.slot == slot);
-            
             if (type) {
                 filtered = filtered.filter(item => item.group_type === type);
             }
-
-            // เรียงลำดับชื่อ ก-ฮ
             filtered.sort((a, b) => a.name.localeCompare(b.name, 'th'));
 
-            // สร้างตัวเลือกใน Dropdown
             let html = '<option value="">-- เลือกกิจกรรม --</option>';
-            if (filtered.length === 0) {
-                html = '<option value="">-- ไม่พบกิจกรรม --</option>';
-            } else {
+            if (filtered.length === 0) html = '<option value="">-- ไม่พบกิจกรรม --</option>';
+            else {
                 filtered.forEach(act => {
                     html += `<option value="${act.id}">${act.name} (${act.group_type})</option>`;
                 });
@@ -175,13 +154,13 @@
             actSelect.innerHTML = html;
         }
 
-        // 3. โหลดรายชื่อนักเรียน + ข้อมูลการเช็คชื่อเก่า
+        // 3. โหลดนักเรียน
         async function loadStudents() {
             const slot = document.getElementById('slotSelect').value;
             const activityId = document.getElementById('activitySelect').value;
 
             if (!activityId) {
-                Swal.fire('แจ้งเตือน', 'กรุณาเลือกกิจกรรมก่อนครับ', 'warning');
+                Swal.fire('เตือน', 'กรุณาเลือกกิจกรรมก่อน', 'warning');
                 return;
             }
 
@@ -190,8 +169,10 @@
             document.getElementById('saveBar').style.display = 'none';
 
             try {
-                // 3.1 ดึงรายชื่อนักเรียนที่ลงทะเบียนวิชานี้ ใน Slot นี้
-                const colName = `slot${slot}_id`;
+                // ดึงรายชื่อจาก registrations โดยดูว่า slotX_id ตรงกับ activityId ไหม
+                // ชื่อคอลัมน์ต้องตรงกับใน Database: slot1_id, slot2_id, ...
+                const colName = `slot${slot}_id`; 
+                
                 const { data: students, error: err1 } = await client
                     .from('registrations')
                     .select('*')
@@ -199,7 +180,7 @@
 
                 if (err1) throw err1;
 
-                // 3.2 ดึงข้อมูลการเช็คชื่อที่เคยบันทึกไว้แล้ว (ถ้ามี)
+                // ดึงข้อมูลการเช็คชื่อเก่า (ถ้ามี)
                 const { data: attendance, error: err2 } = await client
                     .from('attendance')
                     .select('*')
@@ -220,39 +201,40 @@
 
             } catch (err) {
                 console.error(err);
-                Swal.fire('Error', 'เกิดข้อผิดพลาดในการดึงข้อมูล', 'error');
+                Swal.fire('Error', 'ไม่สามารถดึงข้อมูลได้ (เช็คชื่อคอลัมน์ใน DB)', 'error');
             } finally {
                 document.getElementById('loading').style.display = 'none';
             }
         }
 
-        // 4. แสดงผลรายชื่อ
+        // 4. แสดงรายชื่อ
         function renderStudentList(students, attendance) {
             const container = document.getElementById('studentContainer');
             document.getElementById('countDisplay').innerText = students.length;
-            
+
             if (students.length === 0) {
-                container.innerHTML = '<div class="text-center text-muted py-3">ไม่มีนักเรียนลงทะเบียนในวิชานี้</div>';
+                container.innerHTML = '<div class="text-center text-muted py-4">ไม่มีผู้ลงทะเบียนในวิชานี้</div>';
                 document.getElementById('studentListArea').style.display = 'block';
                 return;
             }
 
-            let html = '';
+            // Map ข้อมูลเก่า
             let attendMap = {};
             attendance.forEach(rec => attendMap[rec.student_id] = rec.status);
 
+            let html = '';
             students.forEach(std => {
-                let status = attendMap[std.student_id] || ''; 
-                // Default ให้ติ๊ก "มา" (Present) ถ้ายังไม่เคยเช็ค
+                let status = attendMap[std.student_id] || '';
+                // Default: ถ้าไม่เคยเช็ค ให้ติ๊ก "มา" (Present)
                 if (status === '') status = 'present';
 
-                let checkPresent = status === 'present' ? 'checked' : '';
-                let checkLeave = status === 'leave' ? 'checked' : '';
-                let checkLate = status === 'late' ? 'checked' : '';
-                let checkAbsent = status === 'absent' ? 'checked' : '';
+                const isP = status === 'present' ? 'checked' : '';
+                const isL = status === 'leave' ? 'checked' : '';
+                const isLt = status === 'late' ? 'checked' : '';
+                const isA = status === 'absent' ? 'checked' : '';
 
                 html += `
-                <div class="student-row d-flex flex-column flex-sm-row align-items-sm-center justify-content-between">
+                <div class="student-row d-flex flex-column flex-sm-row align-items-start justify-content-between">
                     <div class="mb-2 mb-sm-0">
                         <div class="fw-bold">${std.student_name}</div>
                         <div class="small text-muted">
@@ -260,16 +242,16 @@
                         </div>
                     </div>
                     <div class="btn-check-group d-flex">
-                        <input type="radio" class="btn-check" name="status_${std.student_id}" id="p_${std.student_id}" value="present" ${checkPresent}>
+                        <input type="radio" class="btn-check" name="s_${std.student_id}" id="p_${std.student_id}" value="present" ${isP}>
                         <label class="btn btn-outline-success" for="p_${std.student_id}">มา</label>
 
-                        <input type="radio" class="btn-check" name="status_${std.student_id}" id="l_${std.student_id}" value="leave" ${checkLeave}>
+                        <input type="radio" class="btn-check" name="s_${std.student_id}" id="l_${std.student_id}" value="leave" ${isL}>
                         <label class="btn btn-outline-warning" for="l_${std.student_id}">ลา</label>
 
-                        <input type="radio" class="btn-check" name="status_${std.student_id}" id="t_${std.student_id}" value="late" ${checkLate}>
+                        <input type="radio" class="btn-check" name="s_${std.student_id}" id="t_${std.student_id}" value="late" ${isLt}>
                         <label class="btn btn-outline-info" for="t_${std.student_id}">สาย</label>
 
-                        <input type="radio" class="btn-check" name="status_${std.student_id}" id="a_${std.student_id}" value="absent" ${checkAbsent}>
+                        <input type="radio" class="btn-check" name="s_${std.student_id}" id="a_${std.student_id}" value="absent" ${isA}>
                         <label class="btn btn-outline-danger" for="a_${std.student_id}">ขาด</label>
                     </div>
                 </div>`;
@@ -280,35 +262,26 @@
             document.getElementById('saveBar').style.display = 'flex';
         }
 
-        // 5. บันทึกข้อมูล
+        // 5. บันทึก
         async function saveAttendance() {
             const slot = document.getElementById('slotSelect').value;
             const activityId = document.getElementById('activitySelect').value;
 
-            Swal.fire({
-                title: 'กำลังบันทึก...',
-                didOpen: () => Swal.showLoading()
-            });
+            Swal.fire({ title: 'กำลังบันทึก...', didOpen: () => Swal.showLoading() });
 
             let upsertData = [];
-
             currentStudents.forEach(std => {
-                const radios = document.getElementsByName(`status_${std.student_id}`);
-                let selectedStatus = null;
+                const radios = document.getElementsByName(`s_${std.student_id}`);
                 for (let r of radios) {
                     if (r.checked) {
-                        selectedStatus = r.value;
+                        upsertData.push({
+                            student_id: std.student_id,
+                            activity_id: parseInt(activityId),
+                            slot: parseInt(slot),
+                            status: r.value
+                        });
                         break;
                     }
-                }
-
-                if (selectedStatus) {
-                    upsertData.push({
-                        student_id: std.student_id,
-                        activity_id: parseInt(activityId),
-                        slot: parseInt(slot),
-                        status: selectedStatus
-                    });
                 }
             });
 
@@ -321,14 +294,14 @@
 
                 Swal.fire({
                     icon: 'success',
-                    title: 'บันทึกเรียบร้อย',
-                    text: `บันทึกข้อมูล ${upsertData.length} คนสำเร็จ`,
+                    title: 'บันทึกสำเร็จ',
+                    text: `บันทึกข้อมูลเรียบร้อย ${upsertData.length} คน`,
                     timer: 1500
                 });
 
             } catch (err) {
                 console.error(err);
-                Swal.fire('Error', 'บันทึกข้อมูลไม่สำเร็จ', 'error');
+                Swal.fire('Error', 'บันทึกไม่สำเร็จ: ' + err.message, 'error');
             }
         }
     </script>
