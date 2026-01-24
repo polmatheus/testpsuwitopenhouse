@@ -38,8 +38,8 @@
 
     <div class="banner-container text-center no-print">
         <div class="container">
-            <h4 class="fw-bold m-0"><i class="bi bi-calendar2-check-fill"></i> Dashboard ติดตามการเช็คชื่อtest</h4>
-            <p class="m-0 text-white-50 small">อัปเดต Real-time จากฐานข้อมูลการเช็คชื่อ</p>
+            <h4 class="fw-bold m-0"><i class="bi bi-calendar2-check-fill"></i> Dashboard ติดตามการเช็คชื่อ</h4>
+            <p class="m-0 text-white-50 small">ตรวจสอบ: ชื่อกิจกรรม + ช่วงเวลา (Slot)</p>
         </div>
     </div>
 
@@ -61,7 +61,7 @@
 
             <div id="loading" class="text-center py-5">
                 <div class="spinner-border text-primary"></div>
-                <p class="mt-2 text-muted">กำลังดึงข้อมูลล่าสุด...</p>
+                <p class="mt-2 text-muted">กำลังดึงข้อมูล...</p>
             </div>
 
             <div class="table-responsive" id="tableArea" style="display:none;">
@@ -93,23 +93,29 @@
             document.getElementById('tableArea').style.display = 'none';
 
             try {
-                // 1. ดึงข้อมูลการเช็คชื่อทั้งหมด (Table Attendance)
+                // 1. ดึงข้อมูลการเช็คชื่อ
                 const { data: attendance, error: err1 } = await client
                     .from('attendance')
-                    .select('activity_id, slot, status');
-                
+                    .select('*');
                 if (err1) throw err1;
 
-                // 2. ดึงชื่อกิจกรรม (View Activity Counts) - ตอนนี้ View ส่ง ID เป็น Text แล้ว
+                // 2. ดึงข้อมูลกิจกรรม
                 const { data: activities, error: err2 } = await client
                     .from('activity_counts')
                     .select('*');
-
                 if (err2) throw err2;
 
-                console.log(`โหลดข้อมูล: Attendance=${attendance.length}, Activities=${activities.length}`);
+                console.log(`Loaded: Attendance=${attendance.length}, Activities=${activities.length}`);
 
-                renderDashboard(activities, attendance);
+                // 🔥 สร้างคู่มือแปลรหัส: "ID" -> "ชื่อกิจกรรม"
+                // เพื่อเอาไปแปะในข้อมูลเช็คชื่อ
+                let idToNameMap = {};
+                activities.forEach(act => {
+                    // แปลง ID เป็น string และตัดช่องว่าง
+                    idToNameMap[String(act.id).trim()] = act.name; 
+                });
+
+                renderDashboard(activities, attendance, idToNameMap);
 
             } catch (err) {
                 console.error(err);
@@ -119,49 +125,57 @@
             }
         }
 
-        function renderDashboard(activities, attendanceRecords) {
-            // 1. สร้าง Map ข้อมูลเช็คชื่อ (สำคัญ: แปลง ID เป็น Text + Trim)
-            let checkMap = {};
+        function renderDashboard(activities, attendanceRecords, idToNameMap) {
+            
+            // 1. สร้าง Key ผสม (Composite Key) = "ชื่อกิจกรรม_Slot"
+            // ตัวอย่าง Key: "Robot_1", "Cooking_3"
+            let statsMap = {};
 
             attendanceRecords.forEach(rec => {
-                let aid = String(rec.activity_id).trim(); // Clean ID
+                let recId = String(rec.activity_id).trim();
                 let s = rec.slot;
+                
+                // หาชื่อกิจกรรมจาก ID ที่บันทึกไว้
+                let actName = idToNameMap[recId];
 
-                if (!checkMap[aid]) checkMap[aid] = {};
-                if (!checkMap[aid][s]) checkMap[aid][s] = { count: 0, p:0, a:0, l:0, t:0 };
+                // ถ้าหาชื่อไม่เจอ (เผื่อ ID ผิดพลาด) ให้ข้าม หรือใช้ ID แทนไปก่อน
+                if (actName) {
+                    // 🔥 สร้าง Key ผสม: ชื่อ + Slot
+                    // นี่คือหัวใจสำคัญ: มันจะล็อกว่าข้อมูลนี้เป็นของกิจกรรมนี้ ในเวลานี้เท่านั้น
+                    let compositeKey = `${actName}_${s}`; 
 
-                checkMap[aid][s].count++;
-                if (rec.status === 'present') checkMap[aid][s].p++;
-                else if (rec.status === 'absent') checkMap[aid][s].a++;
-                else if (rec.status === 'late') checkMap[aid][s].t++;
-                else if (rec.status === 'leave') checkMap[aid][s].l++;
+                    if (!statsMap[compositeKey]) statsMap[compositeKey] = { count: 0, p:0, a:0, l:0, t:0 };
+
+                    statsMap[compositeKey].count++;
+                    if (rec.status === 'present') statsMap[compositeKey].p++;
+                    else if (rec.status === 'absent') statsMap[compositeKey].a++;
+                    else if (rec.status === 'late') statsMap[compositeKey].t++;
+                    else if (rec.status === 'leave') statsMap[compositeKey].l++;
+                }
             });
 
-            // 2. จัดกลุ่มกิจกรรม
+            // 2. จัดกลุ่มกิจกรรมเพื่อวาดตาราง (เหมือนเดิม)
             let grouped = {};
             activities.forEach(row => {
-                let cleanActId = String(row.id).trim(); // Clean ID ฝั่งกิจกรรมให้ตรงกัน
-
                 if (!grouped[row.name]) grouped[row.name] = { 
                     name: row.name, 
                     group: row.group_type, 
                     id: row.id, 
-                    cleanId: cleanActId,
                     slots: {} 
                 };
                 grouped[row.name].slots[row.slot] = row; 
             });
 
-            // 3. เรียงลำดับ (ตามกลุ่ม -> ตาม ID)
+            // 3. เรียงลำดับ
             let sortedItems = Object.values(grouped).sort((a, b) => {
                 const groupOrder = { 'ISTEM': 1, 'Teacher': 2, 'Parent': 3 };
                 let orderA = groupOrder[a.group] || 99;
                 let orderB = groupOrder[b.group] || 99;
                 if (orderA !== orderB) return orderA - orderB;
-                return String(a.id).localeCompare(String(b.id), undefined, { numeric: true });
+                return a.name.localeCompare(b.name, 'th');
             });
 
-            // 4. สร้าง HTML
+            // 4. วาดตาราง
             let html = '';
             for (let item of sortedItems) {
                 let groupBadge = 'bg-secondary';
@@ -182,16 +196,17 @@
                 
                 // วนลูป Slot 1-4
                 for (let s = 1; s <= 4; s++) {
-                    let slotActivity = item.slots[s]; // กิจกรรมเปิดรอบนี้ไหม?
+                    let slotActivity = item.slots[s]; 
                     html += `<td class="status-cell">`;
 
                     if (slotActivity) {
-                        // 🔍 ค้นหาใน checkMap ด้วย ID ที่ Clean แล้ว
-                        let lookupId = item.cleanId;
-                        let stat = (checkMap[lookupId] && checkMap[lookupId][s]);
+                        // 🔥 ค้นหาด้วย Key ผสม: "ชื่อกิจกรรม_Slot"
+                        // ต้องตรงทั้งชื่อ และ เวลา ถึงจะเจอข้อมูล
+                        let lookupKey = `${item.name}_${s}`;
+                        let stat = statsMap[lookupKey];
 
                         if (stat && stat.count > 0) {
-                            // ✅ สีเขียว (เช็คแล้ว)
+                            // ✅ สีเขียว
                             html += `
                             <div class="status-box box-checked">
                                 <div class="fw-bold text-success"><i class="bi bi-check-circle-fill"></i> เช็คแล้ว</div>
@@ -202,7 +217,7 @@
                                 </div>
                             </div>`;
                         } else {
-                            // ❌ สีแดง (ยังไม่เช็ค)
+                            // ❌ สีแดง
                             html += `
                             <div class="status-box box-unchecked">
                                 <div class="fw-bold"><i class="bi bi-exclamation-circle"></i> ยังไม่เช็ค</div>
@@ -210,7 +225,7 @@
                             </div>`;
                         }
                     } else {
-                        // ⚪ สีเทา (ไม่มีรอบ)
+                        // ⚪ สีเทา
                         html += `<div class="status-box box-none">-</div>`;
                     }
                     html += `</td>`;
