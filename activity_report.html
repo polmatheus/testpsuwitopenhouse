@@ -3,13 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>สรุปผลการเช็คชื่อรายกิจกรรม - PSUWIT</title>
+    <title>ติดตามสถานะการเช็คชื่อ - PSUWIT</title>
     
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="https://xlsx.com/shim.min.js"></script> <style>
+
+    <style>
         :root { --primary-color: #0d47a1; --secondary-color: #1976d2; --bg-color: #f0f4f8; }
         body { font-family: 'Sarabun', sans-serif; background-color: var(--bg-color); min-height: 100vh; }
         
@@ -21,121 +22,96 @@
         
         .main-card {
             background: white; border-radius: 15px; padding: 20px; 
-            box-shadow: 0 5px 20px rgba(0,0,0,0.05); margin-bottom: 20px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.05); margin-bottom: 30px;
         }
 
-        .stat-card {
-            border-radius: 12px; padding: 15px; color: white;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1); text-align: center;
+        /* Status Box Styles */
+        .status-cell { vertical-align: middle; padding: 4px !important; text-align: center; }
+        
+        .status-box {
+            border-radius: 8px; padding: 8px 4px; font-size: 0.8rem;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            min-height: 75px; 
+            border: 1px solid rgba(0,0,0,0.05);
+            transition: all 0.2s;
         }
-        .bg-present { background: linear-gradient(45deg, #198754, #20c997); }
-        .bg-absent { background: linear-gradient(45deg, #dc3545, #f76707); }
-        .bg-leave { background: linear-gradient(45deg, #ffc107, #fd7e14); color: black; }
-        .bg-total { background: linear-gradient(45deg, #0d6efd, #0dcaf0); }
 
-        /* Print Settings */
+        /* สีเขียว: เช็คแล้ว */
+        .box-checked { 
+            background-color: #d1e7dd; color: #0f5132; border-color: #badbcc;
+        }
+        /* สีแดง: ยังไม่เช็ค */
+        .box-unchecked { 
+            background-color: #f8d7da; color: #842029; border-color: #f5c2c7;
+        }
+        /* สีเทา: ไม่มีรอบ */
+        .box-none { 
+            background-color: #f8f9fa; color: #adb5bd; 
+        }
+
+        /* Stat Badges inside box */
+        .mini-stat {
+            font-size: 0.7rem; margin-top: 4px; display: flex; gap: 4px; justify-content: center; flex-wrap: wrap;
+        }
+        .ms-item { background: rgba(255,255,255,0.6); padding: 1px 4px; border-radius: 4px; font-weight: bold; }
+
+        .sticky-col { position: sticky; left: 0; background: white; z-index: 5; border-right: 2px solid #dee2e6; min-width: 200px; }
+
         @media print {
-            .no-print { display: none !important; }
-            .main-card { box-shadow: none; border: none; padding: 0; }
-            body { background-color: white; }
+            .no-print { display: none; }
         }
     </style>
 </head>
 <body>
 
-    <div class="banner-container text-center">
+    <div class="banner-container text-center no-print">
         <div class="container">
-            <h4 class="fw-bold m-0"><i class="bi bi-pie-chart-fill"></i> สรุปยอดเช็คชื่อ (รายกิจกรรม)</h4>
+            <h4 class="fw-bold m-0"><i class="bi bi-calendar2-check-fill"></i> Dashboard ติดตามการเช็คชื่อ</h4>
+            <p class="m-0 text-white-50 small">ภาพรวมสถานะการบันทึกเวลาเรียน</p>
         </div>
     </div>
 
-    <div class="container">
-        
-        <div class="main-card no-print">
-            <div class="d-flex justify-content-between align-items-center mb-3">
-                <a href="index.html" class="btn btn-outline-secondary btn-sm rounded-pill"><i class="bi bi-house"></i> หน้าแรก</a>
-                <div class="d-flex gap-2">
-                    <a href="check_name.html" class="btn btn-outline-primary btn-sm rounded-pill"><i class="bi bi-clipboard-check"></i> ไปหน้าเช็คชื่อ</a>
-                    <button onclick="window.print()" class="btn btn-dark btn-sm rounded-pill"><i class="bi bi-printer"></i> พิมพ์</button>
+    <div class="container-fluid px-4">
+        <div class="main-card">
+            
+            <div class="d-flex justify-content-between align-items-center mb-3 no-print">
+                <div>
+                    <a href="index.html" class="btn btn-outline-secondary rounded-pill btn-sm me-2"><i class="bi bi-house"></i> หน้าแรก</a>
+                    <a href="check_name.html" class="btn btn-outline-primary rounded-pill btn-sm"><i class="bi bi-clipboard-check"></i> ไปหน้าเช็คชื่อ</a>
                 </div>
-            </div>
-
-            <div class="row align-items-end">
-                <div class="col-md-4 mb-2">
-                    <label class="fw-bold small text-muted">เลือกช่วงเวลา (Slot)</label>
-                    <select id="selectSlot" class="form-select" onchange="loadReport()">
-                        <option value="1" selected>09:00 (Slot 1)</option>
-                        <option value="2">10:30 (Slot 2)</option>
-                        <option value="3">13:00 (Slot 3)</option>
-                        <option value="4">14:30 (Slot 4)</option>
-                    </select>
-                </div>
-                <div class="col-md-4 mb-2">
-                    <label class="fw-bold small text-muted">กรองประเภทกิจกรรม</label>
-                    <select id="selectType" class="form-select" onchange="loadReport()">
-                        <option value="">-- ทั้งหมด --</option>
-                        <option value="ISTEM">ISTEM</option>
-                        <option value="Teacher">Teacher</option>
-                        <option value="Parent">Parent</option>
-                    </select>
-                </div>
-                <div class="col-md-4 mb-2">
-                    <button onclick="loadReport()" class="btn btn-primary w-100 rounded-pill fw-bold">
-                        <i class="bi bi-arrow-clockwise"></i> อัปเดตข้อมูล
+                <div class="d-flex gap-2 align-items-center">
+                    <div class="small text-muted me-2 d-none d-md-block">
+                        <span class="badge bg-success me-1"> </span> เช็คแล้ว
+                        <span class="badge bg-danger ms-2 me-1"> </span> ยังไม่เช็ค
+                    </div>
+                    <button onclick="fetchData()" class="btn btn-primary rounded-pill btn-sm fw-bold">
+                        <i class="bi bi-arrow-clockwise"></i> รีเฟรช
                     </button>
                 </div>
             </div>
-        </div>
 
-        <div class="row g-3 mb-3" id="statCards">
-            <div class="col-6 col-md-3">
-                <div class="stat-card bg-present">
-                    <div class="fs-1 fw-bold" id="totalPresent">0</div>
-                    <small>มา (Present)</small>
-                </div>
+            <div id="loading" class="text-center py-5">
+                <div class="spinner-border text-primary" role="status"></div>
+                <p class="mt-2 text-muted">กำลังประมวลผลข้อมูล...</p>
             </div>
-            <div class="col-6 col-md-3">
-                <div class="stat-card bg-absent">
-                    <div class="fs-1 fw-bold" id="totalAbsent">0</div>
-                    <small>ขาด (Absent)</small>
-                </div>
-            </div>
-            <div class="col-6 col-md-3">
-                <div class="stat-card bg-leave">
-                    <div class="fs-1 fw-bold text-dark" id="totalLeave">0</div>
-                    <small class="text-dark">ลา/สาย</small>
-                </div>
-            </div>
-            <div class="col-6 col-md-3">
-                <div class="stat-card bg-total">
-                    <div class="fs-1 fw-bold" id="totalChecked">0</div>
-                    <small>เช็คแล้วทั้งหมด</small>
-                </div>
-            </div>
-        </div>
 
-        <div class="main-card p-0 overflow-hidden">
-            <div class="table-responsive">
-                <table class="table table-striped table-hover mb-0 text-center align-middle">
-                    <thead class="table-dark small">
+            <div class="table-responsive" id="tableArea" style="display:none;">
+                <table class="table table-bordered mb-0 align-middle">
+                    <thead class="table-dark text-center small">
                         <tr>
-                            <th class="text-start ps-3">ชื่อกิจกรรม</th>
-                            <th width="10%">ประเภท</th>
-                            <th width="10%" class="bg-success text-white">มา</th>
-                            <th width="10%" class="bg-danger text-white">ขาด</th>
-                            <th width="10%" class="bg-warning text-dark">ลา</th>
-                            <th width="10%" class="bg-info text-dark">สาย</th>
-                            <th width="12%" class="bg-secondary text-white">รวมเช็ค</th>
-                            <th width="10%">ยอดลงทะเบียน</th>
+                            <th class="sticky-col py-3">รายชื่อกิจกรรม</th>
+                            <th width="18%">09:00<br><span class="badge bg-secondary">Slot 1</span></th>
+                            <th width="18%">10:30<br><span class="badge bg-secondary">Slot 2</span></th>
+                            <th width="18%">13:00<br><span class="badge bg-secondary">Slot 3</span></th>
+                            <th width="18%">14:30<br><span class="badge bg-secondary">Slot 4</span></th>
                         </tr>
                     </thead>
-                    <tbody id="reportTable">
-                        <tr><td colspan="8" class="text-center py-4">กำลังโหลดข้อมูล...</td></tr>
-                    </tbody>
+                    <tbody id="tableBody">
+                        </tbody>
                 </table>
             </div>
+            
         </div>
-
     </div>
 
     <script>
@@ -146,127 +122,135 @@
         const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBxa2Fxc3htYmV3aWx6cnVvZ2R3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg0ODgzMTksImV4cCI6MjA4NDA2NDMxOX0.TFyfNcFXcUUF29Iexmkjf6EaNIXAv8KuOFY_ydAY_z8'; 
         const client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-        document.addEventListener('DOMContentLoaded', loadReport);
+        document.addEventListener('DOMContentLoaded', fetchData);
 
-        async function loadReport() {
-            const slot = document.getElementById('selectSlot').value;
-            const typeFilter = document.getElementById('selectType').value;
-            const tbody = document.getElementById('reportTable');
-
-            tbody.innerHTML = `<tr><td colspan="8" class="text-center py-5"><div class="spinner-border text-primary"></div><br>กำลังประมวลผล...</td></tr>`;
+        async function fetchData() {
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('tableArea').style.display = 'none';
 
             try {
-                // 1. ดึงข้อมูลกิจกรรมทั้งหมดของ Slot นี้ (จาก View activity_counts)
-                let query = client.from('activity_counts').select('*').eq('slot', slot);
-                if(typeFilter) query = query.eq('group_type', typeFilter);
-                
-                const { data: activities, error: err1 } = await query;
+                // 1. ดึงรายชื่อกิจกรรมทั้งหมด (เพื่อสร้างโครงตาราง)
+                const { data: activities, error: err1 } = await client
+                    .from('activity_counts')
+                    .select('*');
                 if (err1) throw err1;
 
-                // 2. ดึงข้อมูลการเช็คชื่อทั้งหมดของ Slot นี้ (จาก Table attendance)
-                // เราดึงแค่ activity_id กับ status มานับจำนวนก็พอ (เร็วดี)
+                // 2. ดึงข้อมูลการเช็คชื่อทั้งหมด (เอามานับยอด)
+                // เลือกเฉพาะฟิลด์ที่จำเป็น เพื่อความเร็ว
                 const { data: attendance, error: err2 } = await client
                     .from('attendance')
-                    .select('activity_id, status')
-                    .eq('slot', slot);
-
+                    .select('activity_id, slot, status');
                 if (err2) throw err2;
 
-                // 3. ประมวลผล: นับจำนวนสถานะ แยกตาม Activity ID
-                let stats = {}; 
-                // Initial State
-                activities.forEach(act => {
-                    stats[act.id] = { 
-                        name: act.name,
-                        type: act.group_type,
-                        regis_total: act.current_seats, // ยอดคนลงทะเบียน
-                        present: 0, absent: 0, leave: 0, late: 0, total_checked: 0
-                    };
-                });
-
-                // Counting Loop
-                attendance.forEach(rec => {
-                    // เช็คว่า Activity ID นี้อยู่ในลิสต์ที่เรากรองมาไหม (เช่น ถ้ากรอง ISTEM แต่ rec เป็น Teacher ก็ข้าม)
-                    // หมายเหตุ: attendance.activity_id เป็น Text ("T11_01") ต้องตรงกับ stats key
-                    if (stats[rec.activity_id]) {
-                        stats[rec.activity_id].total_checked++;
-                        if (rec.status === 'present') stats[rec.activity_id].present++;
-                        else if (rec.status === 'absent') stats[rec.activity_id].absent++;
-                        else if (rec.status === 'leave') stats[rec.activity_id].leave++;
-                        else if (rec.status === 'late') stats[rec.activity_id].late++;
-                    }
-                });
-
-                // 4. แสดงผล
-                renderTable(activities, stats);
-                updateDashboard(stats);
+                processAndRender(activities, attendance);
 
             } catch (err) {
                 console.error(err);
-                tbody.innerHTML = `<tr><td colspan="8" class="text-center text-danger py-4">เกิดข้อผิดพลาด: ${err.message}</td></tr>`;
+                document.getElementById('tableBody').innerHTML = `<tr><td colspan="5" class="text-center text-danger p-4">โหลดข้อมูลไม่สำเร็จ: ${err.message}</td></tr>`;
+                document.getElementById('loading').style.display = 'none';
             }
         }
 
-        function renderTable(activities, stats) {
-            const tbody = document.getElementById('reportTable');
-            
-            // เรียงลำดับชื่อกิจกรรม
-            activities.sort((a, b) => a.name.localeCompare(b.name, 'th'));
+        function processAndRender(activities, attendanceRecords) {
+            // 1. เตรียม Object เก็บสถิติการเช็คชื่อ
+            // statsMap[activity_id][slot] = { checked: true/false, p:0, a:0, ... }
+            let statsMap = {};
 
-            if (activities.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="8" class="text-center text-muted py-4">ไม่พบกิจกรรมในรอบนี้</td></tr>`;
-                return;
-            }
-
-            let html = '';
-            activities.forEach(act => {
-                let s = stats[act.id];
+            attendanceRecords.forEach(rec => {
+                let aid = rec.activity_id; // ID เป็น Text แล้ว
+                let s = rec.slot;
                 
-                // Progress bar เล็กๆ เพื่อดูว่าเช็คครบไหม
-                let percent = s.regis_total > 0 ? Math.round((s.total_checked / s.regis_total) * 100) : 0;
-                let progressColor = percent < 50 ? 'bg-danger' : (percent < 100 ? 'bg-warning' : 'bg-success');
+                if (!statsMap[aid]) statsMap[aid] = {};
+                if (!statsMap[aid][s]) statsMap[aid][s] = { count: 0, p:0, a:0, l:0, t:0 };
 
-                html += `
-                    <tr>
-                        <td class="text-start ps-3 fw-bold text-secondary">
-                            ${s.name}
-                            <div class="progress mt-1" style="height: 3px; width: 50px;">
-                                <div class="progress-bar ${progressColor}" style="width: ${percent}%"></div>
-                            </div>
-                        </td>
-                        <td><span class="badge bg-light text-dark border">${s.type}</span></td>
-                        <td class="fw-bold text-success">${s.present || '-'}</td>
-                        <td class="fw-bold text-danger">${s.absent || '-'}</td>
-                        <td class="text-warning fw-bold">${s.leave || '-'}</td>
-                        <td class="text-info fw-bold">${s.late || '-'}</td>
-                        <td class="fw-bold bg-light">${s.total_checked}</td>
-                        <td class="text-muted small">${s.regis_total}</td>
-                    </tr>
-                `;
+                statsMap[aid][s].count++;
+                if (rec.status === 'present') statsMap[aid][s].p++;
+                else if (rec.status === 'absent') statsMap[aid][s].a++;
+                else if (rec.status === 'late') statsMap[aid][s].t++; // t for late/time
+                else if (rec.status === 'leave') statsMap[aid][s].l++;
             });
-            tbody.innerHTML = html;
-        }
 
-        function updateDashboard(stats) {
-            let totalP = 0, totalA = 0, totalL = 0, totalAll = 0;
+            // 2. จัดกลุ่มกิจกรรมเพื่อแสดงผล (Group by Name -> Slot 1-4)
+            let grouped = {};
+            activities.forEach(row => {
+                if (!grouped[row.name]) grouped[row.name] = { 
+                    name: row.name, 
+                    group: row.group_type, 
+                    id: row.id, // ใช้ ID นี้เป็น Key ในการดึง statsMap
+                    slots: {} 
+                };
+                grouped[row.name].slots[row.slot] = row; 
+            });
 
-            for (let key in stats) {
-                totalP += stats[key].present;
-                totalA += stats[key].absent;
-                totalL += stats[key].leave + stats[key].late;
-                totalAll += stats[key].total_checked;
+            // 3. เรียงลำดับ (Group: ISTEM->Teacher->Parent, แล้วตามด้วย ID)
+            let sortedItems = Object.values(grouped).sort((a, b) => {
+                const groupOrder = { 'ISTEM': 1, 'Teacher': 2, 'Parent': 3 };
+                let orderA = groupOrder[a.group] || 99;
+                let orderB = groupOrder[b.group] || 99;
+                if (orderA !== orderB) return orderA - orderB;
+                // ถ้า ID เป็น Text (T11_01) เทียบแบบ String, ถ้าเป็นตัวเลข เทียบแบบ Number
+                return String(a.id).localeCompare(String(b.id)); 
+            });
+
+            // 4. สร้าง HTML
+            let html = '';
+            for (let item of sortedItems) {
+                // Badge สีกลุ่ม
+                let groupBadge = 'bg-secondary';
+                if(item.group === 'ISTEM') groupBadge = 'bg-primary';
+                else if(item.group === 'Teacher') groupBadge = 'bg-info text-dark';
+                else if(item.group === 'Parent') groupBadge = 'bg-warning text-dark';
+
+                html += `<tr>`;
+                
+                // คอลัมน์ชื่อกิจกรรม
+                html += `<td class="sticky-col p-2 align-middle border-end">
+                            <div class="fw-bold text-dark" style="font-size: 0.9rem;">${item.name}</div>
+                            <span class="badge ${groupBadge} mt-1" style="font-size: 0.65rem;">${item.group}</span>
+                            <div class="text-muted small" style="font-size: 0.6rem;">ID: ${item.id}</div>
+                        </td>`;
+                
+                // Loop Slot 1-4
+                for (let s = 1; s <= 4; s++) {
+                    let slotActivity = item.slots[s]; // ดูว่ากิจกรรมนี้มีเปิดใน Slot นี้ไหม
+                    html += `<td class="status-cell">`;
+
+                    if (slotActivity) {
+                        // ดึงข้อมูลการเช็คชื่อจาก StatsMap
+                        let stat = (statsMap[item.id] && statsMap[item.id][s]);
+
+                        if (stat && stat.count > 0) {
+                            // ✅ กรณี: มีการเช็คชื่อแล้ว (สีเขียว)
+                            html += `
+                            <div class="status-box box-checked">
+                                <div class="fw-bold text-success"><i class="bi bi-check-circle-fill"></i> เช็คแล้ว</div>
+                                <div class="mini-stat">
+                                    <span class="ms-item text-success" title="มา">P: ${stat.p}</span>
+                                    <span class="ms-item text-danger" title="ขาด">A: ${stat.a}</span>
+                                    <span class="ms-item text-warning" title="ลา">L: ${stat.l}</span>
+                                    <span class="ms-item text-info" title="สาย">T: ${stat.t}</span>
+                                </div>
+                            </div>`;
+                        } else {
+                            // ❌ กรณี: ยังไม่มีข้อมูลเช็คชื่อ (สีแดง)
+                            html += `
+                            <div class="status-box box-unchecked">
+                                <div class="fw-bold"><i class="bi bi-exclamation-circle"></i> ยังไม่เช็ค</div>
+                                <div style="font-size: 0.7rem; margin-top:5px;">รอการบันทึก</div>
+                            </div>`;
+                        }
+                    } else {
+                        // ⚪ กรณี: กิจกรรมนี้ไม่มีใน Slot นี้ (สีเทา)
+                        html += `<div class="status-box box-none">-</div>`;
+                    }
+                    html += `</td>`;
+                }
+                html += `</tr>`;
             }
 
-            // Animation ตัวเลขวิ่ง
-            animateValue("totalPresent", totalP);
-            animateValue("totalAbsent", totalA);
-            animateValue("totalLeave", totalL);
-            animateValue("totalChecked", totalAll);
-        }
-
-        function animateValue(id, end) {
-            const obj = document.getElementById(id);
-            obj.innerText = end.toLocaleString();
+            document.getElementById('tableBody').innerHTML = html;
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('tableArea').style.display = 'block';
         }
     </script>
 </body>
