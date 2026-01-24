@@ -115,7 +115,6 @@
             initActivities();
         });
 
-        // 1. โหลดกิจกรรม
         async function initActivities() {
             try {
                 const { data, error } = await client.from('activity_counts').select('*');
@@ -128,7 +127,6 @@
             }
         }
 
-        // 2. กรองกิจกรรมตาม Slot/Type
         function filterActivities() {
             const slot = document.getElementById('slotSelect').value;
             const type = document.getElementById('typeSelect').value;
@@ -150,7 +148,6 @@
             actSelect.innerHTML = html;
         }
 
-        // 3. โหลดรายชื่อนักเรียน
         async function loadStudents() {
             const slot = document.getElementById('slotSelect').value;
             const activityId = document.getElementById('activitySelect').value;
@@ -165,10 +162,10 @@
             document.getElementById('saveBar').style.display = 'none';
 
             try {
-                // ชื่อคอลัมน์ที่จะค้นหา (slot1_id, slot2_id...)
+                // ชื่อคอลัมน์ที่จะค้นหา
                 const colName = 'slot' + slot + '_id'; 
-
-                // ดึงรายชื่อ
+                
+                // 1. ดึงรายชื่อนักเรียน
                 const { data: students, error: err1 } = await client
                     .from('registrations')
                     .select('*')
@@ -176,7 +173,7 @@
 
                 if (err1) throw err1;
 
-                // ดึงสถานะเช็คชื่อเก่า
+                // 2. ดึงสถานะเช็คชื่อเก่า (activity_id เป็น TEXT แล้ว)
                 const { data: attendance, error: err2 } = await client
                     .from('attendance')
                     .select('*')
@@ -219,8 +216,7 @@
             let html = '';
             students.forEach(std => {
                 let status = attendMap[std.student_id] || '';
-                // Default: ถ้าไม่เคยเช็ค ให้ติ๊ก "มา"
-                if (status === '') status = 'present';
+                if (status === '') status = 'present'; 
 
                 const isP = status === 'present' ? 'checked' : '';
                 const isL = status === 'leave' ? 'checked' : '';
@@ -269,7 +265,10 @@
                     if (r.checked) {
                         upsertData.push({
                             student_id: std.student_id,
-                            activity_id: parseInt(activityId),
+                            
+                            // 🔥 จุดสำคัญ: ไม่ใช้ parseInt แล้ว เพราะ ID เป็นตัวหนังสือ
+                            activity_id: activityId, 
+                            
                             slot: parseInt(slot),
                             status: r.value
                         });
