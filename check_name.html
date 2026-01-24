@@ -38,7 +38,7 @@
 
     <div class="banner-container text-center">
         <div class="container">
-            <h4 class="fw-bold m-0"><i class="bi bi-clipboard-check-fill"></i> ระบบเช็คชื่อ1</h4>
+            <h4 class="fw-bold m-0"><i class="bi bi-clipboard-check-fill"></i> ระบบเช็คชื่อ</h4>
         </div>
     </div>
 
@@ -128,7 +128,7 @@
             }
         }
 
-        // 2. กรองกิจกรรมตาม Slot
+        // 2. กรองกิจกรรมตาม Slot/Type
         function filterActivities() {
             const slot = document.getElementById('slotSelect').value;
             const type = document.getElementById('typeSelect').value;
@@ -150,7 +150,7 @@
             actSelect.innerHTML = html;
         }
 
-        // 3. โหลดรายชื่อนักเรียน (จุดสำคัญคือตรง colName)
+        // 3. โหลดรายชื่อนักเรียน
         async function loadStudents() {
             const slot = document.getElementById('slotSelect').value;
             const activityId = document.getElementById('activitySelect').value;
@@ -165,21 +165,18 @@
             document.getElementById('saveBar').style.display = 'none';
 
             try {
-                // =========================================================
-                // 🔥 จุดสำคัญ: เปลี่ยนชื่อคอลัมน์ตาม Slot ที่เลือก (1-4)
-                // =========================================================
+                // ชื่อคอลัมน์ที่จะค้นหา (slot1_id, slot2_id...)
                 const colName = 'slot' + slot + '_id'; 
-                // เช่น เลือก Slot 1 -> colName = 'slot1_id'
-                // เลือก Slot 2 -> colName = 'slot2_id'
 
+                // ดึงรายชื่อ
                 const { data: students, error: err1 } = await client
                     .from('registrations')
                     .select('*')
-                    .eq(colName, activityId); // ค้นหาเฉพาะคอลัมน์นั้นๆ
+                    .eq(colName, activityId); 
 
                 if (err1) throw err1;
 
-                // ดึงข้อมูลการเช็คชื่อเก่า
+                // ดึงสถานะเช็คชื่อเก่า
                 const { data: attendance, error: err2 } = await client
                     .from('attendance')
                     .select('*')
@@ -200,7 +197,7 @@
 
             } catch (err) {
                 console.error(err);
-                Swal.fire('Error', 'ไม่สามารถดึงข้อมูลได้', 'error');
+                Swal.fire('Error', 'ไม่สามารถดึงข้อมูลได้: ' + err.message, 'error');
             } finally {
                 document.getElementById('loading').style.display = 'none';
             }
@@ -222,7 +219,7 @@
             let html = '';
             students.forEach(std => {
                 let status = attendMap[std.student_id] || '';
-                // Default ให้ติ๊ก "มา"
+                // Default: ถ้าไม่เคยเช็ค ให้ติ๊ก "มา"
                 if (status === '') status = 'present';
 
                 const isP = status === 'present' ? 'checked' : '';
