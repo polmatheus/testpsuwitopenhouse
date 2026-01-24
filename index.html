@@ -75,12 +75,13 @@
             </div>
         </div>
     </div>
+
     <div class="container pb-5">
         
         <div class="row g-4 justify-content-center">
 
             <div class="col-md-5 col-sm-12">
-                <a href="regist.html" class="menu-card theme-regist p-5 text-center">
+                <div onclick="showClosedMessage()" class="menu-card theme-closed p-5 text-center">
                     <div class="d-flex justify-content-center">
                         <div class="icon-box">
                             <i class="bi bi-pencil-square"></i>
@@ -89,12 +90,12 @@
                     <h4 class="card-title">ลงทะเบียนกิจกรรม</h4>
                     <p class="card-desc">
                         เลือกฐานกิจกรรมที่สนใจเข้าร่วม<br>
-                        จำนวน 4 ฐาน (ตามช่วงเวลา)
+                        (ปิดระบบลงทะเบียนแล้ว)
                     </p>
                     <div class="btn-go">
-                        คลิกเพื่อลงทะเบียน <i class="bi bi-arrow-right ms-1"></i>
+                        <i class="bi bi-x-circle-fill"></i> ปิดรับลงทะเบียน
                     </div>
-                </a>
+                </div>
             </div>
 
             <div class="col-md-5 col-sm-12">
@@ -117,8 +118,25 @@
 
         </div>
 
-        
+        <div class="text-center mt-5">
+            <a href="index.html" class="btn btn-outline-secondary rounded-pill px-4 text-decoration-none">
+                <i class="bi bi-house"></i> กลับหน้าหลัก (Home)
+            </a>
+        </div>
+
     </div>
+
+    <script>
+        function showClosedMessage() {
+            Swal.fire({
+                icon: 'info',
+                title: 'หมดเวลาลงทะเบียนแล้ว',
+                text: 'ขณะนี้ระบบปิดรับการลงทะเบียนเรียบร้อยแล้วครับ',
+                confirmButtonText: 'รับทราบ',
+                confirmButtonColor: '#6c757d'
+            });
+        }
+    </script>
 
 </body>
 </html>
