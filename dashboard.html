@@ -63,10 +63,17 @@
 
     <div class="container">
         <div class="main-card">
-            <div class="d-flex justify-content-between align-items-center mb-3">
+            <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
                 <a href="index.html" class="btn btn-outline-primary rounded-pill btn-sm">
                     <i class="bi bi-arrow-left"></i> กลับหน้าลงทะเบียน
                 </a>
+
+                <div class="bg-light px-3 py-1 rounded-pill border">
+                    <small>ยอดลงทะเบียนรวม:</small> 
+                    <strong id="grandTotal" class="text-primary">0</strong> 
+                    <small>ที่นั่ง</small>
+                </div>
+
                 <button onclick="fetchData()" class="btn btn-primary rounded-pill btn-sm">
                     <i class="bi bi-arrow-clockwise"></i> รีเฟรชข้อมูล
                 </button>
@@ -116,7 +123,9 @@
         async function fetchData() {
             document.getElementById('loading').style.display = 'block';
             document.getElementById('tableArea').style.display = 'none';
-            document.getElementById('grandTotal').innerText = '...';
+            // Reset ยอดรวม
+            const grandTotalEl = document.getElementById('grandTotal');
+            if(grandTotalEl) grandTotalEl.innerText = '...';
 
             try {
                 const { data, error } = await client
@@ -129,7 +138,7 @@
 
             } catch (err) {
                 console.error(err);
-                document.getElementById('tableBody').innerHTML = `<tr><td colspan="6" class="text-center text-danger p-4">เกิดข้อผิดพลาดในการโหลดข้อมูล</td></tr>`;
+                document.getElementById('tableBody').innerHTML = `<tr><td colspan="6" class="text-center text-danger p-4">เกิดข้อผิดพลาดในการโหลดข้อมูล: ${err.message}</td></tr>`;
                 document.getElementById('loading').style.display = 'none';
                 document.getElementById('tableArea').style.display = 'block';
             }
@@ -152,7 +161,7 @@
                 grouped[name].slots[row.slot] = row; 
             });
 
-            // 2. 🔥 แก้ไข: เรียงลำดับ Group ก่อน แล้วตามด้วย ID
+            // 2. เรียงลำดับ Group ก่อน แล้วตามด้วย ID
             let sortedItems = Object.values(grouped).sort((a, b) => {
                 // กำหนดลำดับกลุ่ม: ISTEM -> Teacher -> Parent
                 const groupOrder = { 'ISTEM': 1, 'Teacher': 2, 'Parent': 3 };
@@ -163,7 +172,8 @@
                 if (orderA !== orderB) {
                     return orderA - orderB; // เรียงตามกลุ่ม
                 } else {
-                    return a.id - b.id; // ถ้ากลุ่มเหมือนกัน ให้เรียงตาม ID (น้อยไปมาก)
+                    // 🔥 แก้ไข: เรียงตาม ID แบบรองรับตัวอักษรและตัวเลข (Numeric Sort)
+                    return String(a.id).localeCompare(String(b.id), undefined, { numeric: true, sensitivity: 'base' });
                 }
             });
 
@@ -222,7 +232,12 @@
             }
 
             document.getElementById('tableBody').innerHTML = html;
-            document.getElementById('grandTotal').innerText = systemTotal.toLocaleString(); 
+            
+            // อัปเดตยอดรวม (ตอนนี้มี Element ให้ลงแล้ว ไม่ Error)
+            const grandTotalEl = document.getElementById('grandTotal');
+            if (grandTotalEl) {
+                grandTotalEl.innerText = systemTotal.toLocaleString(); 
+            }
 
             document.getElementById('loading').style.display = 'none';
             document.getElementById('tableArea').style.display = 'block';
