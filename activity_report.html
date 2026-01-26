@@ -13,8 +13,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
-    <style>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script> <style>
         :root { --primary-color: #0d47a1; --secondary-color: #1976d2; --bg-color: #f0f4f8; }
         body { font-family: 'Sarabun', sans-serif; background-color: var(--bg-color); min-height: 100vh; }
         .banner-container { background: linear-gradient(135deg, var(--primary-color), var(--secondary-color)); color: white; padding: 20px 0; border-radius: 0 0 25px 25px; margin-bottom: 20px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
@@ -26,7 +25,6 @@
         .box-unchecked { background-color: #f8d7da; color: #842029; border-color: #f5c2c7; }
         .box-none { background-color: #f8f9fa; color: #adb5bd; }
 
-        /* ปรับขนาดตัวเลขสถิติให้พอดี */
         .mini-stat { font-size: 0.7rem; margin-top: 4px; display: flex; gap: 2px; justify-content: center; flex-wrap: wrap; }
         .ms-item { background: rgba(255,255,255,0.7); padding: 1px 4px; border-radius: 4px; font-weight: bold; font-size: 0.65rem; min-width: 25px; text-align: center; }
         
@@ -52,20 +50,20 @@
         <div class="main-card">
             <div class="d-flex justify-content-between align-items-center mb-3 no-print">
                 <div>
-                    <a href="teacher.html" class="btn btn-outline-secondary rounded-pill btn-sm me-2"><i class="bi bi-house"></i> หน้าแรก</a>
+                    <a href="teacher_hub.html" class="btn btn-outline-secondary rounded-pill btn-sm me-2"><i class="bi bi-house"></i> หน้าแรก</a>
                 </div>
                 <div class="d-flex gap-2">
                     <span class="badge bg-success d-flex align-items-center">เช็คแล้ว</span>
                     <span class="badge bg-danger d-flex align-items-center">ยังไม่เช็ค</span>
                     <button onclick="fetchData()" class="btn btn-primary rounded-pill btn-sm fw-bold ms-2">
-                        <i class="bi bi-arrow-clockwise"></i> รีเฟรช
+                        <i class="bi bi-arrow-clockwise"></i> รีเฟรช (Force)
                     </button>
                 </div>
             </div>
 
             <div id="loading" class="text-center py-5">
                 <div class="spinner-border text-primary"></div>
-                <p class="mt-2 text-muted">กำลังดึงข้อมูล...</p>
+                <p class="mt-2 text-muted" id="loadingText">กำลังทยอยดึงข้อมูล...</p>
             </div>
 
             <div class="table-responsive" id="tableArea" style="display:none;">
@@ -95,16 +93,35 @@
         async function fetchData() {
             document.getElementById('loading').style.display = 'block';
             document.getElementById('tableArea').style.display = 'none';
+            document.getElementById('loadingText').innerText = "กำลังเริ่มดาวน์โหลดข้อมูล...";
 
             try {
-                // 1. ดึงข้อมูล Attendance 
-                // 🔥 แก้ไขสำคัญ: เพิ่ม .range(0, 9999) เพื่อแก้ปัญหาข้อมูลเกิน 1,000 แถวแล้วหาย
-                const { data: attendance, error: err1 } = await client
-                    .from('attendance')
-                    .select('*')
-                    .range(0, 9999);
-                
-                if (err1) throw err1;
+                // 1. ดึงข้อมูล Attendance แบบ Chunking (ทยอยดึงทีละ 2000 แถว)
+                let allAttendance = [];
+                let from = 0;
+                let step = 2000;
+                let keepFetching = true;
+
+                while(keepFetching) {
+                    const to = from + step - 1;
+                    document.getElementById('loadingText').innerText = `กำลังดึงแถวที่ ${from} - ${to}...`;
+
+                    const { data, error } = await client
+                        .from('attendance')
+                        .select('*')
+                        .range(from, to);
+                    
+                    if (error) throw error;
+
+                    if (data.length > 0) {
+                        allAttendance = allAttendance.concat(data);
+                        from += step;
+                        // ถ้าดึงมาได้น้อยกว่า step แสดงว่าหมดแล้ว
+                        if (data.length < step) keepFetching = false;
+                    } else {
+                        keepFetching = false;
+                    }
+                }
 
                 // 2. ดึงข้อมูล Activities
                 const { data: activities, error: err2 } = await client
@@ -113,7 +130,16 @@
                 
                 if (err2) throw err2;
 
-                console.log(`Loaded: Attendance=${attendance.length}, Activities=${activities.length}`);
+                // 🔥 แจ้งเตือนยอดที่ดึงได้ (Debug)
+                Swal.fire({
+                    position: 'top-end',
+                    icon: 'success',
+                    title: `โหลดข้อมูลสำเร็จ!`,
+                    text: `พบข้อมูลเช็คชื่อทั้งหมด ${allAttendance.length} แถว`,
+                    showConfirmButton: false,
+                    timer: 1500,
+                    toast: true
+                });
 
                 // 3. Map ID -> Name
                 let idToNameMap = {};
@@ -121,7 +147,7 @@
                     idToNameMap[String(act.id).trim()] = act.name; 
                 });
 
-                renderDashboard(activities, attendance, idToNameMap);
+                renderDashboard(activities, allAttendance, idToNameMap);
 
             } catch (err) {
                 console.error(err);
@@ -138,10 +164,10 @@
                 let recId = String(rec.activity_id).trim();
                 let s = rec.slot;
                 
-                // หาชื่อกิจกรรม
+                // หาชื่อกิจกรรมจาก ID
                 let actName = idToNameMap[recId];
                 
-                // ถ้าไม่เจอชื่อ ให้ใช้ ID แทน (กันเหนียว)
+                // ถ้าไม่เจอชื่อ ให้ใช้ ID แทน (กรณี ID ตรงๆ)
                 let keyName = actName ? actName : recId;
 
                 if (keyName) {
@@ -202,6 +228,7 @@
                     html += `<td class="status-cell">`;
 
                     if (slotActivity) {
+                        // Key ต้องตรงกับที่สร้างไว้ด้านบน
                         let lookupKey = `${item.name}_${s}`;
                         let stat = statsMap[lookupKey];
 
