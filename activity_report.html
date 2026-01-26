@@ -53,7 +53,6 @@
             <div class="d-flex justify-content-between align-items-center mb-3 no-print">
                 <div>
                     <a href="teacher.html" class="btn btn-outline-secondary rounded-pill btn-sm me-2"><i class="bi bi-house"></i> หน้าแรก</a>
-                    
                 </div>
                 <div class="d-flex gap-2">
                     <span class="badge bg-success d-flex align-items-center">เช็คแล้ว</span>
@@ -98,14 +97,25 @@
             document.getElementById('tableArea').style.display = 'none';
 
             try {
-                // 1. ดึงข้อมูล
-                const { data: attendance, error: err1 } = await client.from('attendance').select('*');
+                // 1. ดึงข้อมูล Attendance 
+                // 🔥 แก้ไขสำคัญ: เพิ่ม .range(0, 9999) เพื่อแก้ปัญหาข้อมูลเกิน 1,000 แถวแล้วหาย
+                const { data: attendance, error: err1 } = await client
+                    .from('attendance')
+                    .select('*')
+                    .range(0, 9999);
+                
                 if (err1) throw err1;
 
-                const { data: activities, error: err2 } = await client.from('activity_counts').select('*');
+                // 2. ดึงข้อมูล Activities
+                const { data: activities, error: err2 } = await client
+                    .from('activity_counts')
+                    .select('*');
+                
                 if (err2) throw err2;
 
-                // 2. Map ID -> Name
+                console.log(`Loaded: Attendance=${attendance.length}, Activities=${activities.length}`);
+
+                // 3. Map ID -> Name
                 let idToNameMap = {};
                 activities.forEach(act => {
                     idToNameMap[String(act.id).trim()] = act.name; 
@@ -122,15 +132,20 @@
         }
 
         function renderDashboard(activities, attendanceRecords, idToNameMap) {
-            // 1. สร้าง Stats Map
+            // 1. สร้าง Stats Map (ใช้ Key ผสม: Name_Slot)
             let statsMap = {};
             attendanceRecords.forEach(rec => {
                 let recId = String(rec.activity_id).trim();
                 let s = rec.slot;
+                
+                // หาชื่อกิจกรรม
                 let actName = idToNameMap[recId];
+                
+                // ถ้าไม่เจอชื่อ ให้ใช้ ID แทน (กันเหนียว)
+                let keyName = actName ? actName : recId;
 
-                if (actName) {
-                    let compositeKey = `${actName}_${s}`; 
+                if (keyName) {
+                    let compositeKey = `${keyName}_${s}`; 
                     if (!statsMap[compositeKey]) statsMap[compositeKey] = { count: 0, p:0, a:0, l:0, t:0 };
 
                     statsMap[compositeKey].count++;
