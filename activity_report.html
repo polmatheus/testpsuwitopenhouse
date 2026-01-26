@@ -13,7 +13,9 @@
     <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script> <style>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+    <style>
         :root { --primary-color: #0d47a1; --secondary-color: #1976d2; --bg-color: #f0f4f8; }
         body { font-family: 'Sarabun', sans-serif; background-color: var(--bg-color); min-height: 100vh; }
         .banner-container { background: linear-gradient(135deg, var(--primary-color), var(--secondary-color)); color: white; padding: 20px 0; border-radius: 0 0 25px 25px; margin-bottom: 20px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
@@ -63,7 +65,7 @@
 
             <div id="loading" class="text-center py-5">
                 <div class="spinner-border text-primary"></div>
-                <p class="mt-2 text-muted" id="loadingText">กำลังทยอยดึงข้อมูล...</p>
+                <p class="mt-2 text-muted" id="loadingText">กำลังเริ่มดาวน์โหลดข้อมูล...</p>
             </div>
 
             <div class="table-responsive" id="tableArea" style="display:none;">
@@ -93,18 +95,17 @@
         async function fetchData() {
             document.getElementById('loading').style.display = 'block';
             document.getElementById('tableArea').style.display = 'none';
-            document.getElementById('loadingText').innerText = "กำลังเริ่มดาวน์โหลดข้อมูล...";
 
             try {
-                // 1. ดึงข้อมูล Attendance แบบ Chunking (ทยอยดึงทีละ 2000 แถว)
+                // 1. ดึงข้อมูล Attendance แบบ Chunking (ทีละ 1,000 แถว)
                 let allAttendance = [];
                 let from = 0;
-                let step = 2000;
+                let step = 1000; // 🔥 แก้เป็น 1000 เพื่อให้ตรงกับ Limit ของ Server
                 let keepFetching = true;
 
                 while(keepFetching) {
                     const to = from + step - 1;
-                    document.getElementById('loadingText').innerText = `กำลังดึงแถวที่ ${from} - ${to}...`;
+                    document.getElementById('loadingText').innerText = `กำลังดึงข้อมูลชุดที่ ${Math.floor(from/1000) + 1}...`;
 
                     const { data, error } = await client
                         .from('attendance')
@@ -113,12 +114,18 @@
                     
                     if (error) throw error;
 
-                    if (data.length > 0) {
+                    if (data && data.length > 0) {
                         allAttendance = allAttendance.concat(data);
-                        from += step;
-                        // ถ้าดึงมาได้น้อยกว่า step แสดงว่าหมดแล้ว
-                        if (data.length < step) keepFetching = false;
+                        
+                        // ถ้าดึงได้น้อยกว่า 1000 แปลว่าหมดแล้ว
+                        if (data.length < step) {
+                            keepFetching = false;
+                        } else {
+                            // ถ้าได้ครบ 1000 แปลว่าอาจจะมีอีก -> ขยับ range ไปต่อ
+                            from += step;
+                        }
                     } else {
+                        // ถ้าไม่มีข้อมูลกลับมาเลย แปลว่าจบแล้ว
                         keepFetching = false;
                     }
                 }
@@ -130,14 +137,14 @@
                 
                 if (err2) throw err2;
 
-                // 🔥 แจ้งเตือนยอดที่ดึงได้ (Debug)
+                // 🔥 แจ้งเตือนยอดที่ดึงได้ (ต้องเกิน 3000 แล้วรอบนี้)
                 Swal.fire({
                     position: 'top-end',
                     icon: 'success',
                     title: `โหลดข้อมูลสำเร็จ!`,
                     text: `พบข้อมูลเช็คชื่อทั้งหมด ${allAttendance.length} แถว`,
                     showConfirmButton: false,
-                    timer: 1500,
+                    timer: 2000,
                     toast: true
                 });
 
@@ -164,10 +171,7 @@
                 let recId = String(rec.activity_id).trim();
                 let s = rec.slot;
                 
-                // หาชื่อกิจกรรมจาก ID
                 let actName = idToNameMap[recId];
-                
-                // ถ้าไม่เจอชื่อ ให้ใช้ ID แทน (กรณี ID ตรงๆ)
                 let keyName = actName ? actName : recId;
 
                 if (keyName) {
@@ -213,7 +217,6 @@
 
                 html += `<tr>`;
                 
-                // คอลัมน์ชื่อ + รหัส
                 html += `<td class="sticky-col p-2 align-middle border-end">
                             <div class="d-flex align-items-center mb-1">
                                 <span class="id-badge me-2">${item.id}</span>
@@ -222,13 +225,11 @@
                             <div class="fw-bold text-dark text-start" style="font-size: 0.9rem;">${item.name}</div>
                         </td>`;
                 
-                // Loop Slot 1-4
                 for (let s = 1; s <= 4; s++) {
                     let slotActivity = item.slots[s]; 
                     html += `<td class="status-cell">`;
 
                     if (slotActivity) {
-                        // Key ต้องตรงกับที่สร้างไว้ด้านบน
                         let lookupKey = `${item.name}_${s}`;
                         let stat = statsMap[lookupKey];
 
